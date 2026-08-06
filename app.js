@@ -1,4 +1,4 @@
-const cargoGroups = [
+let cargoGroups = [
   { origin: '부산', destination: '롱비치', departure: '9/15 출발 예정', type: '40ft HQ', fill: 65, remaining: 12, members: 3 },
   { origin: '인천', destination: '상하이', departure: '9/12 출발 예정', type: '40ft GP', fill: 72, remaining: 8, members: 4 },
   { origin: '부산', destination: '함부르크', departure: '9/20 출발 예정', type: '40ft HQ', fill: 54, remaining: 18, members: 2 }
@@ -48,4 +48,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const rfpButton = document.querySelector('#rfpButton');
   if (rfpButton) rfpButton.onclick = () => { rfpButton.textContent = '✓ 견적 요청 전송 완료'; rfpButton.style.background = '#0d9f6e'; rfpButton.disabled = true; document.querySelector('#rfpNotice').style.display = 'block'; };
   document.querySelectorAll('.selectQuote').forEach(button => button.onclick = () => { document.querySelectorAll('.quote-card').forEach(card => card.classList.remove('selected')); button.closest('.quote-card').classList.add('selected'); document.querySelectorAll('.selectQuote').forEach(item => item.textContent = '이 견적 선택'); button.textContent = '선택됨'; });
+  import('./firebase-data.js').catch(() => {});
 });
+
+window.setCargoGroups = groups => {
+  cargoGroups = groups;
+  renderGroups(false);
+  const statNumbers = document.querySelectorAll('.stat-row b');
+  if (statNumbers.length === 3) {
+    const averageFill = groups.length ? Math.round(groups.reduce((sum, group) => sum + group.fill, 0) / groups.length) : 0;
+    statNumbers[0].textContent = `${groups.reduce((sum, group) => sum + group.members, 0)}건`;
+    statNumbers[1].textContent = `${groups.length}개`;
+    statNumbers[2].textContent = `${averageFill}%`;
+  }
+};
