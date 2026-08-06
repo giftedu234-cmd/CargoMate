@@ -1,1 +1,57 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>운임 계산기 | CargoMate</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></head><body><header class="header"><div class="container nav"><a class="brand" href="index.html"><span class="brand-icon"><i class="fa-solid fa-cubes-stacked"></i></span>화물메이트 <small>CargoMate</small></a><nav class="menu"><a href="index.html">서비스 소개</a><a href="matching.html">화물 매칭 찾기</a><a class="active" href="calculator.html">운임 계산기</a><a href="quotes.html">그룹 견적</a><a href="mypage.html">마이페이지</a></nav></div></header><main class="section"><div class="container calculator"><div><span class="eyebrow">CBM SPLIT CALCULATOR</span><h1>운임을 공정하게 나눠보세요</h1><p class="muted">내 화물 부피와 그룹 전체 부피를 기준으로 예상 컨테이너 운임의 분담금을 즉시 계산합니다.</p><div class="result"><small>내 예상 분담금</small><b id="costDisplay">$0</b><span id="ratioDisplay">전체 부피의 0%</span></div></div><div class="card"><div class="calc-fields"><label>내 화물 부피 (CBM)<input id="myCbm" class="calc-input" type="number" value="8" min="0" step="0.1"></label><label>그룹원 화물 합계 (CBM)<input id="othersCbm" class="calc-input" type="number" value="20" min="0" step="0.1"></label><label class="wide">컨테이너 예상 운임 (USD)<input id="totalCost" class="calc-input" type="number" value="4200" min="0" step="100"></label></div><div style="margin-top:30px" class="space-row"><b>부피 비율</b><b id="barPercent" style="color:#1479ff">0%</b></div><div class="progress"><span id="ratioBar"></span></div><div class="metric-grid"><div class="metric">내 화물<b id="myVolumeText">8 CBM</b></div><div class="metric">그룹 전체<b id="totalVolumeText">28 CBM</b></div></div></div></div></main><footer class="footer">© 2026 CargoMate · 계산 결과는 예상값입니다.</footer><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>운임 계산기 | CargoMate</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body data-require-auth="true">
+  <header class="header"><div class="container nav">
+    <a class="brand" href="index.html"><span class="brand-icon"><i class="fa-solid fa-cubes-stacked"></i></span>화물메이트 <small>CargoMate</small></a>
+    <nav class="menu"><a href="index.html">서비스 소개</a><a href="matching.html">화물 매칭 찾기</a><a class="active" href="calculator.html">운임 계산기</a><a href="quotes.html">그룹 견적</a><a href="mypage.html">마이페이지</a></nav>
+  </div></header>
+  <main class="section"><div class="container calculator">
+    <div>
+      <span class="eyebrow">CBM SPLIT CALCULATOR</span>
+      <h1>운임을 공정하게 나눠보세요.</h1>
+      <p class="muted">내 화물 부피와 그룹 전체 부피를 기준으로 예상 컨테이너 운임의 분담금을 바로 계산합니다.</p>
+      <div class="result"><small>내 예상 분담금</small><b id="costDisplay" aria-live="polite">$1,200</b><span id="ratioDisplay">전체 부피의 28.6%</span></div>
+    </div>
+    <div class="card">
+      <div class="calc-fields">
+        <label>내 화물 부피 (CBM)<input id="myCbm" type="number" value="8" min="0" step="0.1" inputmode="decimal"></label>
+        <label>다른 그룹원의 화물 합계 (CBM)<input id="othersCbm" type="number" value="20" min="0" step="0.1" inputmode="decimal"></label>
+        <label class="wide">컨테이너 예상 운임 (USD)<input id="totalCost" type="number" value="4200" min="0" step="100" inputmode="decimal"></label>
+      </div>
+      <div style="margin-top:30px" class="space-row"><b>부피 비율</b><b id="barPercent" style="color:#1479ff">28.6%</b></div>
+      <div class="progress"><span id="ratioBar" style="width:28.6%"></span></div>
+      <div class="metric-grid"><div class="metric">내 화물<b id="myVolumeText">8 CBM</b></div><div class="metric">그룹 전체<b id="totalVolumeText">28 CBM</b></div></div>
+    </div>
+  </div></main>
+  <footer class="footer">© 2026 CargoMate · 계산 결과는 예상값입니다.</footer>
+  <script>
+    (() => {
+      const get = id => document.getElementById(id);
+      const update = () => {
+        const mine = Math.max(0, Number(get('myCbm').value) || 0);
+        const others = Math.max(0, Number(get('othersCbm').value) || 0);
+        const cost = Math.max(0, Number(get('totalCost').value) || 0);
+        const total = mine + others;
+        const ratio = total ? mine / total : 0;
+        const percentage = (ratio * 100).toFixed(1);
+        get('costDisplay').textContent = '$' + Math.round(cost * ratio).toLocaleString('en-US');
+        get('ratioDisplay').textContent = `전체 부피의 ${percentage}%`;
+        get('barPercent').textContent = `${percentage}%`;
+        get('ratioBar').style.width = `${percentage}%`;
+        get('myVolumeText').textContent = `${mine} CBM`;
+        get('totalVolumeText').textContent = `${total} CBM`;
+      };
+      ['myCbm', 'othersCbm', 'totalCost'].forEach(id => get(id).addEventListener('input', update));
+      update();
+    })();
+  </script>
+  <script type="module" src="firebase-auth.js"></script>
+</body>
+</html>

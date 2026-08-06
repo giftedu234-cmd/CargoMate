@@ -1,1 +1,85 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>화물매칭 찾기 | CargoMate</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></head><body><header class="header"><div class="container nav"><a class="brand" href="index.html"><span class="brand-icon"><i class="fa-solid fa-cubes-stacked"></i></span>화물메이트 <small>CargoMate</small></a><nav class="menu"><a href="index.html">서비스 소개</a><a class="active" href="matching.html">화물 매칭 찾기</a><a href="calculator.html">운임 계산기</a><a href="quotes.html">그룹 견적</a><a href="mypage.html">마이페이지</a></nav></div></header><main class="section"><div class="container"><div class="section-heading"><span class="eyebrow">CARGO MATCHING</span><h1>내 화물과 맞는 그룹 찾기</h1><p class="muted">조건을 입력하면 출발 예정인 공유 컨테이너 그룹을 찾아드려요.</p></div><form id="matchForm" class="form-card"><label>출발지<select id="origin"><option>부산</option><option>인천</option><option>평택</option></select></label><label>목적지<select id="destination"><option>롱비치</option><option>상하이</option><option>함부르크</option></select></label><label>희망 선적일<input type="date" required></label><label>화물 부피 (CBM)<input id="cargoCbm" type="number" value="6" min="0.1" step="0.1" required></label><button class="btn">매칭 검색</button></form><p class="muted" id="matchSummary" style="margin-top:25px"></p><div class="grid-3" id="matchResults"></div></div></main><footer class="footer">© 2026 CargoMate · 예시 목업 데이터입니다.</footer><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>화물 매칭 찾기 | CargoMate</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body data-require-auth="true">
+  <header class="header"><div class="container nav">
+    <a class="brand" href="index.html"><span class="brand-icon"><i class="fa-solid fa-cubes-stacked"></i></span>화물메이트 <small>CargoMate</small></a>
+    <nav class="menu"><a href="index.html">서비스 소개</a><a class="active" href="matching.html">화물 매칭 찾기</a><a href="calculator.html">운임 계산기</a><a href="quotes.html">그룹 견적</a><a href="mypage.html">마이페이지</a></nav>
+  </div></header>
+
+  <main class="section"><div class="container">
+    <div class="section-heading"><span class="eyebrow">CARGO MATCHING</span><h1>내 화물과 맞는 출항 그룹 찾기</h1><p class="muted">항구·희망 선적일·화물 부피를 입력해 참여할 그룹을 찾거나, 직접 새 그룹을 만들 수 있습니다.</p></div>
+    <form id="matchForm" class="form-card">
+      <label>출발 항구
+        <select id="origin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select>
+      </label>
+      <label>도착 항구
+        <select id="destination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option></select>
+      </label>
+      <label>희망 선적일<input id="sailingDate" type="date"></label>
+      <label>화물 부피 (CBM)<input id="cargoCbm" type="number" value="6" min="0.1" step="0.1" required></label>
+      <button class="btn" type="submit">매칭 검색</button>
+    </form>
+
+    <div class="space-row" style="margin-top:28px"><div><h2 style="margin:0">모집 중인 그룹</h2><p class="muted" id="matchSummary" style="margin:7px 0 0">데모 그룹을 불러오는 중입니다.</p></div><button id="openCreate" class="btn" type="button">+ 새 그룹 만들기</button></div>
+    <form id="createForm" class="form-card" hidden style="margin-top:18px">
+      <label>출발 항구<select id="newOrigin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
+      <label>도착 항구<select id="newDestination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option></select></label>
+      <label>출항 예정일<input id="newDate" type="date" required></label>
+      <label>모집 가능 부피 (CBM)<input id="newRemaining" type="number" min="0.1" step="0.1" value="10" required></label>
+      <button class="btn" type="submit">그룹 등록하기</button>
+    </form>
+    <div class="success" id="createNotice">새 그룹을 등록했습니다. 이 브라우저에 저장되며 목록에 바로 표시됩니다.</div>
+    <div class="grid-3" id="matchResults" style="margin-top:22px"></div>
+  </div></main>
+  <footer class="footer">© 2026 CargoMate · 화면의 화물 그룹은 데모용 예시입니다.</footer>
+
+  <script>
+    (() => {
+      const storageKey = 'cargomate-created-groups';
+      const seedGroups = [
+        {origin:'부산항', destination:'롱비치항 (미국)', departureDate:'2026-09-15', type:'40ft HQ', fill:65, remaining:12, members:3},
+        {origin:'인천항', destination:'상하이항 (중국)', departureDate:'2026-09-12', type:'40ft GP', fill:72, remaining:8, members:4},
+        {origin:'부산항', destination:'함부르크항 (독일)', departureDate:'2026-09-20', type:'40ft HQ', fill:54, remaining:18, members:2}
+      ];
+      const savedGroups = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      let groups = [...savedGroups, ...seedGroups];
+      const result = document.getElementById('matchResults');
+      const summary = document.getElementById('matchSummary');
+      const dateText = value => value ? new Intl.DateTimeFormat('ko-KR',{month:'numeric',day:'numeric'}).format(new Date(value + 'T00:00:00')) + ' 출항 예정' : '출항일 협의';
+      const draw = list => {
+        summary.textContent = list.length ? `${list.length}개의 참여 가능한 그룹을 찾았습니다.` : '조건에 맞는 그룹이 없습니다. 새 그룹을 만들어 보세요.';
+        result.innerHTML = list.length ? list.map(group => `<article class="card match-card"><div class="space-row"><span class="tag">모집 중</span><small>화주 ${group.members}명</small></div><h3>${group.origin} → ${group.destination}</h3><p class="muted">${dateText(group.departureDate)} · ${group.type}</p><div class="space-row"><span>현재 <b>${group.fill}%</b> 채워짐</span><b style="color:#1479ff">${group.remaining} CBM 남음</b></div><div class="progress"><span style="width:${group.fill}%"></span></div><button class="btn join" type="button">그룹 참여 신청하기</button></article>`).join('') : '<article class="empty">조건을 바꾸거나 새 그룹을 등록해 보세요.</article>';
+        result.querySelectorAll('.join').forEach(button => button.onclick = () => { button.textContent = '참여 신청 완료'; button.disabled = true; button.style.background = '#0d9f6e'; });
+      };
+      document.getElementById('matchForm').onsubmit = event => {
+        event.preventDefault();
+        const origin = document.getElementById('origin').value;
+        const destination = document.getElementById('destination').value;
+        const date = document.getElementById('sailingDate').value;
+        const volume = Number(document.getElementById('cargoCbm').value) || 0;
+        draw(groups.filter(group => group.origin === origin && group.destination === destination && group.remaining >= volume && (!date || group.departureDate >= date)));
+      };
+      document.getElementById('openCreate').onclick = () => {
+        const form = document.getElementById('createForm'); form.hidden = !form.hidden;
+        if (!form.hidden) document.getElementById('newDate').focus();
+      };
+      document.getElementById('createForm').onsubmit = event => {
+        event.preventDefault();
+        const remaining = Number(document.getElementById('newRemaining').value);
+        const created = {origin:document.getElementById('newOrigin').value, destination:document.getElementById('newDestination').value, departureDate:document.getElementById('newDate').value, type:'40ft HQ', fill:0, remaining, members:1};
+        savedGroups.unshift(created); localStorage.setItem(storageKey, JSON.stringify(savedGroups)); groups.unshift(created);
+        document.getElementById('createNotice').style.display = 'block'; event.target.reset(); event.target.hidden = true; draw(groups);
+      };
+      draw(groups);
+    })();
+  </script>
+  <script type="module" src="firebase-auth.js"></script>
+</body>
+</html>
