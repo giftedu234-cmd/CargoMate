@@ -200,7 +200,7 @@ const filteredGroups = () => {
   const recruiting = groups.filter(group => isRecruiting(group));
   if (!filterActive) return recruiting;
 
-  const origin = $('#origin').value;
+  const origin = selectedDestination('#origin', '#originCustom');
   const destination = selectedDestination('#destination', '#destinationCustom');
   const sailingDate = $('#sailingDate').value;
   const cargoCbm = Number($('#cargoCbm').value) || 0;
@@ -329,6 +329,8 @@ $('#sailingDate').min = localToday();
 updateDeadline();
 setupCustomDestination('#destination', '#destinationCustomField', '#destinationCustom');
 setupCustomDestination('#newDestination', '#newDestinationCustomField', '#newDestinationCustom');
+setupCustomDestination('#origin', '#originCustomField', '#originCustom');
+setupCustomDestination('#newOrigin', '#newOriginCustomField', '#newOriginCustom');
 
 openCreateButton.addEventListener('click', () => {
   const blockedUntil = activeCreationBlock();
@@ -362,7 +364,7 @@ createForm.addEventListener('submit', async event => {
     const deadlineOffsetDays = Number($('#newDeadlineOffset').value);
     const departureDate = $('#newDate').value;
     const input = {
-      origin: $('#newOrigin').value,
+      origin: selectedDestination('#newOrigin', '#newOriginCustom'),
       destination: selectedDestination('#newDestination', '#newDestinationCustom'),
       departureDate,
       deadlineOffsetDays,
@@ -378,6 +380,7 @@ createForm.addEventListener('submit', async event => {
         notes: $('#newNotes').value.trim()
       }
     };
+    if (!input.origin) throw new Error('출발 항구를 입력해 주세요.');
     if (!input.destination) throw new Error('도착 항구를 입력해 주세요.');
     if (!input.departureDate || !input.deadline) throw new Error('출항 목표일을 선택해 주세요.');
     if (input.creatorCargo.cbm <= 0 || input.creatorCargo.cbm > input.minCbm) throw new Error('최소 출항 물량은 개설자 화물 부피 이상이어야 합니다.');
@@ -395,6 +398,7 @@ createForm.addEventListener('submit', async event => {
     saveLocalGroups();
     filterActive = false;
     createForm.reset();
+    $('#newOrigin').dispatchEvent(new Event('change'));
     $('#newDestination').dispatchEvent(new Event('change'));
     createForm.hidden = true;
     updateDeadline();

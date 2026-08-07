@@ -46,7 +46,8 @@
   <main class="section"><div class="container">
     <div class="section-heading"><span class="eyebrow">CARGO MATCHING</span><h1>출항 가능성과 화물 정보를 확인하고 참여하세요</h1><p class="muted">그룹 개설자의 화물 조건을 먼저 확인한 뒤, 내 화물 정보를 모두 입력해야 참여 신청이 완료됩니다.</p></div>
     <form id="matchForm" class="form-card">
-      <label>출발 항구<select id="origin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
+      <label>출발 항구<select id="origin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option><option value="__custom__">직접 입력</option></select></label>
+      <label id="originCustomField" hidden>출발 항구 직접 입력<input id="originCustom" type="text" maxlength="80" placeholder="예: 군산항"></label>
       <label>도착 항구<select id="destination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option><option value="__custom__">직접 입력</option></select></label>
       <label id="destinationCustomField" hidden>도착 항구 직접 입력<input id="destinationCustom" type="text" maxlength="80" placeholder="예: 시드니항 (호주)"></label>
       <label>희망 선적일<input id="sailingDate" type="date"></label>
@@ -57,7 +58,8 @@
     <div id="dataStatus" class="data-status" data-state="loading" role="status" aria-live="polite" hidden></div>
     <div class="space-row" style="margin-top:28px"><div><h2 style="margin:0">출항 그룹 · 예시 목록</h2><p class="muted" id="matchSummary" style="margin:7px 0 0">예시 목록을 불러오고 있습니다.</p></div><button id="openCreate" class="btn" type="button" disabled>+ 새 그룹 만들기</button></div>
     <form id="createForm" class="form-card" hidden style="margin-top:18px">
-      <label>출발 항구<select id="newOrigin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
+      <label>출발 항구<select id="newOrigin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option><option value="__custom__">직접 입력</option></select></label>
+      <label id="newOriginCustomField" hidden>출발 항구 직접 입력<input id="newOriginCustom" type="text" maxlength="80" placeholder="예: 군산항"></label>
       <label>도착 항구<select id="newDestination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option><option value="__custom__">직접 입력</option></select></label>
       <label id="newDestinationCustomField" hidden>도착 항구 직접 입력<input id="newDestinationCustom" type="text" maxlength="80" placeholder="예: 시드니항 (호주)"></label>
       <label>출항 목표일<input id="newDate" type="date" required></label>
@@ -107,7 +109,7 @@
   </div>
 
   <footer class="footer">© 2026 CargoMate · 화주 주도형 컨테이너 공유 플랫폼</footer>
-  <script type="module" src="matching.js?v=20260807-8"></script>
+  <script type="module" src="matching.js?v=20260807-9"></script>
   <script src="auth-gate.js"></script>
   <script type="module" src="firebase-auth.js?v=20260807-3"></script>
 </body>
