@@ -8,13 +8,15 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <style>
     .cancel-application{background:#fff1f1!important;color:#bd2525!important;border:1px solid #f2b8b8}
-    .confirm-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:#07162b99;backdrop-filter:blur(4px)}
+    .confirm-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:#07162b99;backdrop-filter:blur(4px);overflow:auto}
     .confirm-overlay[hidden]{display:none}
-    .confirm-dialog{width:min(100%,390px);padding:30px;border-radius:18px;background:#fff;text-align:center;box-shadow:0 24px 70px #07162b50}
-    .confirm-dialog h2{margin:14px 0 8px;font-size:22px}
-    .confirm-icon{display:grid;place-items:center;width:52px;height:52px;margin:auto;border-radius:50%;background:#fff0e9;color:#df5b2a;font-size:22px}
-    .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
-    .btn-danger{background:#d43b3b}.btn-light{background:#e9eef5;color:#263951}
+    .confirm-dialog{width:min(100%,410px);padding:30px;border-radius:18px;background:#fff;text-align:center;box-shadow:0 24px 70px #07162b50}
+    .join-dialog{width:min(100%,620px);text-align:left}
+    .confirm-dialog h2{margin:14px 0 8px;font-size:22px}.confirm-icon{display:grid;place-items:center;width:52px;height:52px;margin:auto;border-radius:50%;background:#fff0e9;color:#df5b2a;font-size:22px}.success-icon{background:#e8f8f1;color:#0d9f6e}
+    .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}.btn-danger{background:#d43b3b}.btn-light{background:#e9eef5;color:#263951}
+    .join-fields{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px}.join-fields .wide,.form-wide{grid-column:1/-1}.join-fields textarea,.form-card textarea{width:100%;min-height:84px;margin-top:7px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;resize:vertical;font:inherit;color:var(--ink)}
+    .creator-cargo{margin:16px 0;padding:16px;border:1px solid #d8e5f5;border-radius:12px;background:#f7faff}.creator-cargo h4{margin:0 0 12px;color:#173f72}.cargo-facts{display:grid;grid-template-columns:1fr 1fr;gap:9px 14px;font-size:13px}.cargo-facts span{color:#64748b}.cargo-facts b{display:block;margin-top:3px;color:#172b49}.cargo-notes{margin:10px 0 0;font-size:12px;color:#526176}.my-application{margin:14px 0 0;padding:11px;border-radius:9px;background:#ebfaf4;color:#087551;font-size:12px;font-weight:700}
+    @media(max-width:560px){.join-fields,.cargo-facts{grid-template-columns:1fr}.confirm-actions{grid-template-columns:1fr}.confirm-dialog{padding:24px}.form-wide{grid-column:auto}}
   </style>
 </head>
 <body data-require-auth="true">
@@ -22,8 +24,9 @@
     <a class="brand" href="index.html"><span class="brand-icon"><i class="fa-solid fa-cubes-stacked"></i></span>화물메이트 <small>CargoMate</small></a>
     <nav class="menu"><a href="index.html">서비스 소개</a><a class="active" href="matching.html">화물 매칭 찾기</a><a href="calculator.html">운임 계산기</a><a href="quotes.html">그룹 견적</a><a href="mypage.html">마이페이지</a></nav>
   </div></header>
+
   <main class="section"><div class="container">
-    <div class="section-heading"><span class="eyebrow">CARGO MATCHING</span><h1>출항 가능성을 확인하고 그룹에 참여하세요</h1><p class="muted">그룹 참여는 출항 확정이 아닙니다. 최소 물량·모집 마감일·견적 단계까지 확인할 수 있습니다.</p></div>
+    <div class="section-heading"><span class="eyebrow">CARGO MATCHING</span><h1>출항 가능성과 화물 정보를 확인하고 참여하세요</h1><p class="muted">그룹 개설자의 화물 조건을 먼저 확인한 뒤, 내 화물 정보를 모두 입력해야 참여 신청이 완료됩니다.</p></div>
     <form id="matchForm" class="form-card">
       <label>출발 항구<select id="origin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
       <label>도착 항구<select id="destination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option></select></label>
@@ -31,110 +34,120 @@
       <label>화물 부피 (CBM)<input id="cargoCbm" type="number" value="6" min="0.1" step="0.1" required></label>
       <button class="btn" type="submit">매칭 검색</button>
     </form>
+
     <div class="space-row" style="margin-top:28px"><div><h2 style="margin:0">출항 그룹</h2><p class="muted" id="matchSummary" style="margin:7px 0 0"></p></div><button id="openCreate" class="btn" type="button">+ 새 그룹 만들기</button></div>
     <form id="createForm" class="form-card" hidden style="margin-top:18px">
       <label>출발 항구<select id="newOrigin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
       <label>도착 항구<select id="newDestination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option></select></label>
       <label>출항 목표일<input id="newDate" type="date" required></label>
-      <label>최소 출항 물량 (CBM)<input id="newMinimum" type="number" min="1" step="0.1" value="28" required></label>
-      <label>내 화물 부피 (CBM)<input id="newMyVolume" type="number" min="0.1" step="0.1" value="8" required></label>
       <label>모집 마감일<input id="newDeadline" type="date" required></label>
+      <label>최소 출항 물량 (CBM)<input id="newMinimum" type="number" min="1" step="0.1" value="28" required></label>
+      <label>개설자 화물 품목<input id="newCargoItem" type="text" maxlength="80" placeholder="예: 의류, 생활용품" required></label>
+      <label>개설자 화물 부피 (CBM)<input id="newMyVolume" type="number" min="0.1" step="0.1" value="8" required></label>
+      <label>개설자 화물 중량 (kg)<input id="newWeight" type="number" min="0.1" step="0.1" required></label>
+      <label>포장 형태<select id="newPackaging" required><option value="">선택</option><option>팔레트</option><option>박스</option><option>목재 상자</option><option>드럼</option><option>기타</option></select></label>
+      <label>운송 조건<select id="newCondition" required><option value="">선택</option><option>일반 화물</option><option>냉장</option><option>냉동</option><option>위험물</option><option>파손 주의</option></select></label>
+      <label class="form-wide">특이사항<textarea id="newNotes" maxlength="300" placeholder="취급 주의사항이나 함께 적재하면 안 되는 화물을 입력하세요."></textarea></label>
       <button class="btn" type="submit">그룹 등록하기</button>
     </form>
-    <div class="success" id="createNotice">새 그룹을 등록했습니다. 이 브라우저에 저장되며 출항 조건을 함께 확인할 수 있습니다.</div>
+    <div class="success" id="createNotice">새 그룹을 등록했습니다. 개설자의 화물 정보도 그룹 카드에 표시됩니다.</div>
     <div class="grid-3" id="matchResults" style="margin-top:22px"></div>
   </div></main>
-  <div class="confirm-overlay" id="cancelModal" hidden>
-    <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
-      <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-      <h2 id="cancelTitle">참여 신청을 취소하시겠습니까?</h2>
-      <p class="muted">취소하면 해당 그룹의 참여 신청 상태가 해제됩니다.</p>
-      <div class="confirm-actions">
-        <button class="btn btn-danger" id="confirmCancel" type="button">예</button>
-        <button class="btn btn-light" id="keepApplication" type="button">아니요</button>
-      </div>
+
+  <div class="confirm-overlay" id="joinModal" hidden>
+    <section class="confirm-dialog join-dialog" role="dialog" aria-modal="true" aria-labelledby="joinTitle">
+      <span class="eyebrow">CARGO APPLICATION</span><h2 id="joinTitle">참여할 화물 정보를 입력해 주세요</h2><p class="muted" id="joinGroupName"></p>
+      <form id="joinForm">
+        <div class="join-fields">
+          <label>운송 품목<input name="item" type="text" maxlength="80" placeholder="예: 의류, 전자부품" required></label>
+          <label>화물 부피 (CBM)<input name="cbm" type="number" min="0.1" step="0.1" required></label>
+          <label>화물 중량 (kg)<input name="weight" type="number" min="0.1" step="0.1" required></label>
+          <label>포장 형태<select name="packaging" required><option value="">선택</option><option>팔레트</option><option>박스</option><option>목재 상자</option><option>드럼</option><option>기타</option></select></label>
+          <label>운송 조건<select name="condition" required><option value="">선택</option><option>일반 화물</option><option>냉장</option><option>냉동</option><option>위험물</option><option>파손 주의</option></select></label>
+          <label class="wide">특이사항<textarea name="notes" maxlength="300" placeholder="취급 주의사항, 적재 제한 등을 입력하세요."></textarea></label>
+        </div>
+        <div class="confirm-actions"><button class="btn" type="submit">입력 완료</button><button class="btn btn-light" id="closeJoin" type="button">닫기</button></div>
+      </form>
     </section>
   </div>
-  <footer class="footer">© 2026 CargoMate · 그룹 정보는 데모용 예시입니다.</footer>
+
+  <div class="confirm-overlay" id="successModal" hidden>
+    <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="successTitle">
+      <div class="confirm-icon success-icon"><i class="fa-solid fa-check"></i></div><h2 id="successTitle">완료!</h2><p class="muted">화물 정보가 등록되었고 그룹 참여 신청이 완료되었습니다.</p><button class="btn" id="closeSuccess" type="button" style="width:100%;margin-top:16px">확인</button>
+    </section>
+  </div>
+
+  <div class="confirm-overlay" id="cancelModal" hidden>
+    <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
+      <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h2 id="cancelTitle">참여 신청을 취소하시겠습니까?</h2><p class="muted">취소하면 입력한 화물 정보와 참여 신청 상태가 함께 삭제됩니다.</p>
+      <div class="confirm-actions"><button class="btn btn-danger" id="confirmCancel" type="button">예</button><button class="btn btn-light" id="keepApplication" type="button">아니요</button></div>
+    </section>
+  </div>
+
+  <footer class="footer">© 2026 CargoMate · 그룹과 화물 정보는 데모용 예시입니다.</footer>
   <script>
     (() => {
       const storageKey = 'cargomate-departure-groups';
-      const applicationKey = 'cargomate-group-applications';
+      const applicationKey = 'cargomate-group-application-details';
       const seedGroups = [
-        {origin:'부산항',destination:'롱비치항 (미국)',departureDate:'2026-09-15',deadline:'2026-09-08',type:'40ft HQ',currentCbm:22,minCbm:28,members:3},
-        {origin:'인천항',destination:'상하이항 (중국)',departureDate:'2026-09-12',deadline:'2026-09-06',type:'40ft GP',currentCbm:30,minCbm:28,members:4},
-        {origin:'부산항',destination:'함부르크항 (독일)',departureDate:'2026-09-20',deadline:'2026-09-12',type:'40ft HQ',currentCbm:18,minCbm:32,members:2}
+        {origin:'부산항',destination:'롱비치항 (미국)',departureDate:'2026-09-15',deadline:'2026-09-08',type:'40ft HQ',currentCbm:22,minCbm:28,members:3,creatorCargo:{item:'생활용품',cbm:8,weight:1240,packaging:'팔레트',condition:'일반 화물',notes:'습기 주의'}},
+        {origin:'인천항',destination:'상하이항 (중국)',departureDate:'2026-09-12',deadline:'2026-09-06',type:'40ft GP',currentCbm:30,minCbm:28,members:4,creatorCargo:{item:'전자부품',cbm:6,weight:760,packaging:'박스',condition:'파손 주의',notes:'충격과 적재 높이 주의'}},
+        {origin:'부산항',destination:'함부르크항 (독일)',departureDate:'2026-09-20',deadline:'2026-09-12',type:'40ft HQ',currentCbm:18,minCbm:32,members:2,creatorCargo:{item:'섬유 원단',cbm:10,weight:1860,packaging:'팔레트',condition:'일반 화물',notes:'오염 방지 포장 완료'}}
       ];
-      const created = JSON.parse(localStorage.getItem(storageKey) || '[]').map(group => {
-        if (group.minCbm) return group;
-        const currentCbm = Math.max(0, 28 - (Number(group.remaining) || 0));
-        return {...group, minCbm: 28, currentCbm, deadline: group.deadline || group.departureDate};
+      const storedCreated = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const created = storedCreated.map(group => {
+        const currentCbm = Number(group.currentCbm) || Math.max(0, 28 - (Number(group.remaining) || 0));
+        return {...group,minCbm:Number(group.minCbm)||28,currentCbm,deadline:group.deadline||group.departureDate,creatorCargo:group.creatorCargo||{item:'기존 그룹 정보 미입력',cbm:currentCbm,weight:'미입력',packaging:'미입력',condition:'미입력',notes:'개설자가 화물 정보를 추가해야 합니다.'}};
       });
-      let groups = [...created, ...seedGroups];
-      const appliedGroups = new Set(JSON.parse(localStorage.getItem(applicationKey) || '[]'));
+      const storedApplications = JSON.parse(localStorage.getItem(applicationKey) || '{}');
+      const applications = storedApplications && !Array.isArray(storedApplications) ? storedApplications : {};
+      let groups = [...created,...seedGroups];
+      let visibleGroups = groups;
+      let activeJoinKey = '';
+      let activeCancelKey = '';
       const result = document.getElementById('matchResults');
       const summary = document.getElementById('matchSummary');
+      const joinModal = document.getElementById('joinModal');
+      const successModal = document.getElementById('successModal');
       const cancelModal = document.getElementById('cancelModal');
-      let cancelTarget = null;
-      const formatDate = value => value ? new Intl.DateTimeFormat('ko-KR',{month:'numeric',day:'numeric'}).format(new Date(value + 'T00:00:00')) : '미정';
+      const safe = value => String(value ?? '').replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
+      const formatDate = value => value ? new Intl.DateTimeFormat('ko-KR',{month:'numeric',day:'numeric'}).format(new Date(value+'T00:00:00')) : '미정';
       const groupKey = group => `${group.origin}|${group.destination}|${group.departureDate}`;
-      const saveApplications = () => localStorage.setItem(applicationKey, JSON.stringify([...appliedGroups]));
-      const setApplicationButton = (button, applied) => {
-        button.dataset.applied = String(applied);
-        button.textContent = applied ? '참여 신청 취소' : '그룹 참여 신청하기';
-        button.classList.toggle('cancel-application', applied);
-      };
-      const closeCancelModal = () => { cancelModal.hidden = true; cancelTarget = null; };
-      const stage = group => group.currentCbm >= group.minCbm ? {number:2,label:'최소 물량 달성 · 견적 비교 대기',color:'#0d9f6e'} : {number:1,label:'모집 중 · 최소 물량 확보 필요',color:'#1565d8'};
+      const saveApplications = () => localStorage.setItem(applicationKey,JSON.stringify(applications));
+      const effectiveCbm = group => Number(group.currentCbm)+(Number(applications[groupKey(group)]?.cbm)||0);
+      const stage = (currentCbm,minCbm) => currentCbm >= minCbm ? {number:2,label:'최소 물량 달성 · 견적 비교 대기',color:'#0d9f6e'} : {number:1,label:'모집 중 · 최소 물량 확보 필요',color:'#1565d8'};
+      const closeModal = modal => { modal.hidden=true; };
+
       const draw = list => {
-        summary.textContent = list.length ? `${list.length}개의 출항 그룹을 찾았습니다. 출항 확정 조건을 확인해 주세요.` : '조건에 맞는 그룹이 없습니다. 새 그룹을 만들어 보세요.';
-        result.innerHTML = list.length ? list.map((group,index) => {
-          const progress = Math.min(100, Math.round(group.currentCbm / group.minCbm * 100));
-          const remain = Math.max(0, group.minCbm - group.currentCbm);
-          const info = stage(group);
-          const key = groupKey(group);
-          const applied = appliedGroups.has(key);
-          return `<article class="card match-card"><div class="space-row"><span class="tag" style="color:${info.color}">${info.label}</span><small>화주 ${group.members}명</small></div><h3>${group.origin} → ${group.destination}</h3><p class="muted">출항 목표 ${formatDate(group.departureDate)} · ${group.type}</p><p style="font-size:13px;font-weight:800;margin:16px 0 6px">진행 단계: ${info.number}/4 · ${info.label}</p><p class="muted" style="font-size:12px;margin:0 0 10px">모집 중 → 최소 물량 달성 → 견적 비교 → 출항 확정</p><div class="space-row"><span>최소 ${group.minCbm} CBM 중 <b>${group.currentCbm} CBM 확보</b></span><b style="color:${info.color}">${remain ? remain + ' CBM 더 필요' : '견적 요청 가능'}</b></div><div class="progress"><span style="width:${progress}%;background:${info.color}"></span></div><div class="space-row" style="font-size:13px"><span>모집 마감: ${formatDate(group.deadline)}</span><span>출항 확정 전</span></div><button class="btn join${applied ? ' cancel-application' : ''}" data-key="${encodeURIComponent(key)}" data-applied="${applied}" type="button" style="margin-top:18px;width:100%">${applied ? '참여 신청 취소' : '그룹 참여 신청하기'}</button></article>`;
-        }).join('') : '<article class="empty">조건을 바꾸거나 새 그룹을 등록해 보세요.</article>';
-        result.querySelectorAll('.join').forEach(button => button.onclick = () => {
-          if (button.dataset.applied === 'true') {
-            cancelTarget = button;
-            cancelModal.hidden = false;
-            document.getElementById('confirmCancel').focus();
-            return;
-          }
-          const key = decodeURIComponent(button.dataset.key);
-          appliedGroups.add(key);
-          saveApplications();
-          setApplicationButton(button, true);
+        visibleGroups=list;
+        summary.textContent=list.length?`${list.length}개의 출항 그룹을 찾았습니다. 개설자 화물과 출항 조건을 확인해 주세요.`:'조건에 맞는 그룹이 없습니다. 새 그룹을 만들어 보세요.';
+        result.innerHTML=list.length?list.map(group=>{
+          const key=groupKey(group),application=applications[key],current=effectiveCbm(group),progress=Math.min(100,Math.round(current/group.minCbm*100)),remain=Math.max(0,group.minCbm-current),info=stage(current,group.minCbm),cargo=group.creatorCargo||{};
+          return `<article class="card match-card"><div class="space-row"><span class="tag" style="color:${info.color}">${info.label}</span><small>화주 ${group.members+(application?1:0)}명</small></div><h3>${safe(group.origin)} → ${safe(group.destination)}</h3><p class="muted">출항 목표 ${formatDate(group.departureDate)} · ${safe(group.type)}</p><section class="creator-cargo"><h4><i class="fa-solid fa-box"></i> 그룹 개설자 화물 정보</h4><div class="cargo-facts"><div><span>품목</span><b>${safe(cargo.item||'미입력')}</b></div><div><span>화물 부피</span><b>${safe(cargo.cbm||'미입력')} CBM</b></div><div><span>중량</span><b>${safe(cargo.weight||'미입력')} kg</b></div><div><span>포장 형태</span><b>${safe(cargo.packaging||'미입력')}</b></div><div><span>운송 조건</span><b>${safe(cargo.condition||'미입력')}</b></div></div><p class="cargo-notes"><b>특이사항:</b> ${safe(cargo.notes||'없음')}</p></section><p style="font-size:13px;font-weight:800;margin:16px 0 6px">진행 단계: ${info.number}/4 · ${info.label}</p><p class="muted" style="font-size:12px;margin:0 0 10px">모집 중 → 최소 물량 달성 → 견적 비교 → 출항 확정</p><div class="space-row"><span>최소 ${group.minCbm} CBM 중 <b>${current} CBM 확보</b></span><b style="color:${info.color}">${remain?remain+' CBM 더 필요':'견적 요청 가능'}</b></div><div class="progress"><span style="width:${progress}%;background:${info.color}"></span></div><div class="space-row" style="font-size:13px"><span>모집 마감: ${formatDate(group.deadline)}</span><span>출항 확정 전</span></div>${application?`<div class="my-application">내 신청 화물: ${safe(application.item)} · ${safe(application.cbm)} CBM · ${safe(application.weight)} kg · ${safe(application.condition)}</div>`:''}<button class="btn join${application?' cancel-application':''}" data-key="${encodeURIComponent(key)}" data-applied="${Boolean(application)}" type="button" style="margin-top:18px;width:100%">${application?'참여 신청 취소':'그룹 참여 신청하기'}</button></article>`;
+        }).join(''):'<article class="empty">조건을 바꾸거나 새 그룹을 등록해 보세요.</article>';
+        result.querySelectorAll('.join').forEach(button=>button.onclick=()=>{
+          const key=decodeURIComponent(button.dataset.key);
+          if(button.dataset.applied==='true'){activeCancelKey=key;cancelModal.hidden=false;document.getElementById('confirmCancel').focus();return;}
+          activeJoinKey=key;
+          const group=groups.find(item=>groupKey(item)===key);
+          document.getElementById('joinGroupName').textContent=`${group.origin} → ${group.destination} · ${formatDate(group.departureDate)} 출항 목표`;
+          document.getElementById('joinForm').reset();
+          document.getElementById('joinForm').elements.cbm.value=document.getElementById('cargoCbm').value||'';
+          joinModal.hidden=false;
+          document.getElementById('joinForm').elements.item.focus();
         });
       };
-      document.getElementById('matchForm').onsubmit = event => {
-        event.preventDefault();
-        const origin = document.getElementById('origin').value;
-        const destination = document.getElementById('destination').value;
-        const date = document.getElementById('sailingDate').value;
-        const volume = Number(document.getElementById('cargoCbm').value) || 0;
-        draw(groups.filter(group => group.origin === origin && group.destination === destination && group.minCbm - group.currentCbm >= volume && (!date || group.departureDate >= date)));
-      };
-      document.getElementById('openCreate').onclick = () => { const form = document.getElementById('createForm'); form.hidden = !form.hidden; if (!form.hidden) document.getElementById('newDate').focus(); };
-      document.getElementById('createForm').onsubmit = event => {
-        event.preventDefault();
-        const group = {origin:document.getElementById('newOrigin').value,destination:document.getElementById('newDestination').value,departureDate:document.getElementById('newDate').value,deadline:document.getElementById('newDeadline').value,type:'40ft HQ',minCbm:Number(document.getElementById('newMinimum').value),currentCbm:Number(document.getElementById('newMyVolume').value),members:1};
-        created.unshift(group); localStorage.setItem(storageKey, JSON.stringify(created)); groups.unshift(group);
-        document.getElementById('createNotice').style.display = 'block'; event.target.reset(); event.target.hidden = true; draw(groups);
-      };
-      document.getElementById('confirmCancel').onclick = () => {
-        if (!cancelTarget) return closeCancelModal();
-        const key = decodeURIComponent(cancelTarget.dataset.key);
-        appliedGroups.delete(key);
-        saveApplications();
-        setApplicationButton(cancelTarget, false);
-        closeCancelModal();
-      };
-      document.getElementById('keepApplication').onclick = closeCancelModal;
-      cancelModal.onclick = event => { if (event.target === cancelModal) closeCancelModal(); };
-      document.addEventListener('keydown', event => { if (event.key === 'Escape' && !cancelModal.hidden) closeCancelModal(); });
+
+      document.getElementById('matchForm').onsubmit=event=>{event.preventDefault();const origin=document.getElementById('origin').value,destination=document.getElementById('destination').value,date=document.getElementById('sailingDate').value;draw(groups.filter(group=>group.origin===origin&&group.destination===destination&&(!date||group.departureDate>=date)));};
+      document.getElementById('openCreate').onclick=()=>{const form=document.getElementById('createForm');form.hidden=!form.hidden;if(!form.hidden)document.getElementById('newDate').focus();};
+      document.getElementById('createForm').onsubmit=event=>{event.preventDefault();const volume=Number(document.getElementById('newMyVolume').value);const group={origin:document.getElementById('newOrigin').value,destination:document.getElementById('newDestination').value,departureDate:document.getElementById('newDate').value,deadline:document.getElementById('newDeadline').value,type:'40ft HQ',minCbm:Number(document.getElementById('newMinimum').value),currentCbm:volume,members:1,creatorCargo:{item:document.getElementById('newCargoItem').value.trim(),cbm:volume,weight:Number(document.getElementById('newWeight').value),packaging:document.getElementById('newPackaging').value,condition:document.getElementById('newCondition').value,notes:document.getElementById('newNotes').value.trim()}};created.unshift(group);localStorage.setItem(storageKey,JSON.stringify(created));groups.unshift(group);document.getElementById('createNotice').style.display='block';event.target.reset();event.target.hidden=true;draw(groups);};
+      document.getElementById('joinForm').onsubmit=event=>{event.preventDefault();const form=new FormData(event.target);applications[activeJoinKey]={item:String(form.get('item')).trim(),cbm:Number(form.get('cbm')),weight:Number(form.get('weight')),packaging:String(form.get('packaging')),condition:String(form.get('condition')),notes:String(form.get('notes')).trim(),appliedAt:new Date().toISOString()};saveApplications();closeModal(joinModal);draw(visibleGroups);successModal.hidden=false;document.getElementById('closeSuccess').focus();};
+      document.getElementById('closeJoin').onclick=()=>closeModal(joinModal);
+      document.getElementById('closeSuccess').onclick=()=>closeModal(successModal);
+      document.getElementById('confirmCancel').onclick=()=>{if(activeCancelKey){delete applications[activeCancelKey];saveApplications();activeCancelKey='';draw(visibleGroups);}closeModal(cancelModal);};
+      document.getElementById('keepApplication').onclick=()=>closeModal(cancelModal);
+      [joinModal,successModal,cancelModal].forEach(modal=>modal.onclick=event=>{if(event.target===modal)closeModal(modal);});
+      document.addEventListener('keydown',event=>{if(event.key==='Escape'){[joinModal,successModal,cancelModal].forEach(closeModal);}});
       draw(groups);
     })();
   </script>
