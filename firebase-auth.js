@@ -141,7 +141,13 @@ if (!isFirebaseConfigured) {
       form.elements.name.required = signup;
       form.elements.confirmPassword.required = signup;
       form.elements.password.autocomplete = signup ? 'new-password' : 'current-password';
-      document.querySelectorAll('[data-auth-mode]').forEach(button => button.style.color = button.dataset.authMode === (signup ? 'signup' : 'login') ? '#1479ff' : '#64748b');
+      const activeMode = signup ? 'signup' : 'login';
+      document.querySelectorAll('[data-auth-mode]').forEach(button => {
+        const isActive = button.dataset.authMode === activeMode;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-selected', String(isActive));
+        button.tabIndex = isActive ? 0 : -1;
+      });
       message('');
     };
     document.querySelectorAll('[data-auth-mode]').forEach(button => button.onclick = () => setMode(button.dataset.authMode === 'signup'));

@@ -1,0 +1,257 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function groupPath(groupId) {
+      return /databases/$(database)/documents/cargoGroups/$(groupId);
+    }
+
+    function applicationPath(groupId, uid) {
+      return /databases/$(database)/documents/cargoGroups/$(groupId)/applications/$(uid);
+    }
+
+    function profilePath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function penaltyPath(uid, groupId) {
+      return /databases/$(database)/documents/users/$(uid)/penalties/$(groupId);
+    }
+
+    function validText(value, maxLength) {
+      return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
+    function validCargoFields(cargo) {
+      return cargo is map
+        && validText(cargo.item, 80)
+        && cargo.cbm is number && cargo.cbm > 0
+        && cargo.weight is number && cargo.weight > 0
+        && validText(cargo.packaging, 40)
+        && validText(cargo.condition, 40)
+        && cargo.notes is string && cargo.notes.size() <= 300;
+    }
+
+    function validCargo(cargo) {
+      return cargo.keys().hasAll(['item', 'cbm', 'weight', 'packaging', 'condition', 'notes'])
+        && cargo.keys().hasOnly(['item', 'cbm', 'weight', 'packaging', 'condition', 'notes'])
+        && validCargoFields(cargo);
+    }
+
+    function oldCount() {
+      return resource.data.get('activeCargoCount', resource.data.get('members', 1));
+    }
+
+    function oldCurrentCbm() {
+      return resource.data.get(
+        'currentCbm',
+        resource.data.get('minCbm', 28) * resource.data.get('fill', 0) / 100
+      );
+    }
+
+    function groupCapacity() {
+      return resource.data.get('capacityCbm', resource.data.get('minCbm', 28));
+    }
+
+    function validGroupCreate() {
+      let data = request.resource.data;
+      return signedIn()
+        && data.keys().hasAll([
+          'schemaVersion', 'ownerUid', 'origin', 'destination', 'departureDate',
+          'departureAt', 'deadline', 'deadlineAt', 'deadlineOffsetDays', 'type',
+          'minCbm', 'capacityCbm', 'currentCbm', 'activeCargoCount', 'creatorCargo',
+          'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'schemaVersion', 'ownerUid', 'origin', 'destination', 'departureDate',
+          'departureAt', 'deadline', 'deadlineAt', 'deadlineOffsetDays', 'type',
+          'minCbm', 'capacityCbm', 'currentCbm', 'activeCargoCount', 'creatorCargo',
+          'status', 'createdAt', 'updatedAt'
+        ])
+        && data.schemaVersion == 2
+        && data.ownerUid == request.auth.uid
+        && validText(data.origin, 60)
+        && validText(data.destination, 80)
+        && validText(data.type, 30)
+        && data.departureDate is string
+        && data.deadline is string
+        && data.departureAt is timestamp
+        && data.deadlineAt is timestamp
+        && data.deadlineAt > request.time
+        && data.departureAt > data.deadlineAt
+        && (data.deadlineOffsetDays == 7 || data.deadlineOffsetDays == 14)
+        && (
+          data.departureAt - data.deadlineAt == duration.value(7, 'd')
+          || data.departureAt - data.deadlineAt == duration.value(14, 'd')
+        )
+        && data.minCbm is number && data.minCbm > 0
+        && data.capacityCbm == data.minCbm
+        && data.currentCbm is number && data.currentCbm > 0 && data.currentCbm <= data.capacityCbm
+        && data.activeCargoCount == 1
+        && validCargo(data.creatorCargo)
+        && data.currentCbm == data.creatorCargo.cbm
+        && data.status == 'recruiting'
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function validAggregateUpdate(groupId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let beforeApplication = exists(applicationPath(groupId, request.auth.uid));
+      let afterApplication = existsAfter(applicationPath(groupId, request.auth.uid));
+      let oldCbm = oldCurrentCbm();
+      let newCbm = request.resource.data.currentCbm;
+      let capacity = groupCapacity();
+      return signedIn()
+        && (resource.data.get('status', 'recruiting') == 'recruiting' || resource.data.status == 'open')
+        && resource.data.get('deadlineAt', request.time + duration.value(1, 'd')) > request.time
+        && changed.hasOnly(['currentCbm', 'activeCargoCount', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.activeCargoCount is int
+        && request.resource.data.currentCbm is number
+        && request.resource.data.currentCbm > 0
+        && request.resource.data.currentCbm <= capacity
+        && (
+          (!beforeApplication && afterApplication
+            && getAfter(applicationPath(groupId, request.auth.uid)).data.applicantUid == request.auth.uid
+            && request.resource.data.activeCargoCount == oldCount() + 1
+            && newCbm - oldCbm >= getAfter(applicationPath(groupId, request.auth.uid)).data.cbm - 0.001
+            && newCbm - oldCbm <= getAfter(applicationPath(groupId, request.auth.uid)).data.cbm + 0.001)
+          ||
+          (beforeApplication && !afterApplication
+            && get(applicationPath(groupId, request.auth.uid)).data.applicantUid == request.auth.uid
+            && request.resource.data.activeCargoCount == oldCount() - 1
+            && oldCbm - newCbm >= get(applicationPath(groupId, request.auth.uid)).data.cbm - 0.001
+            && oldCbm - newCbm <= get(applicationPath(groupId, request.auth.uid)).data.cbm + 0.001)
+        );
+    }
+
+    function previousTrust(uid) {
+      return exists(profilePath(uid)) ? get(profilePath(uid)).data.get('trustScore', 100) : 100;
+    }
+
+    function validOwnerCancellation(groupId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let participantCount = resource.data.get('activeCargoCount', resource.data.get('members', 1)) - 1;
+      return signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && (resource.data.get('status', 'recruiting') == 'recruiting' || resource.data.status == 'open')
+        && resource.data.get('deadlineAt', request.time + duration.value(1, 'd')) > request.time
+        && changed.hasOnly(['status', 'cancelledAt', 'updatedAt'])
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.cancelledAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && (
+          participantCount <= 0
+          || (
+            existsAfter(penaltyPath(request.auth.uid, groupId))
+            && getAfter(profilePath(request.auth.uid)).data.trustScore
+              == (previousTrust(request.auth.uid) >= 10 ? previousTrust(request.auth.uid) - 10 : 0)
+            && getAfter(profilePath(request.auth.uid)).data.groupCreationBlockedUntil
+              > request.time + duration.value(6, 'd')
+          )
+        );
+    }
+
+    match /cargoGroups/{groupId} {
+      allow read: if signedIn();
+      allow create: if validGroupCreate();
+      allow update: if validAggregateUpdate(groupId) || validOwnerCancellation(groupId);
+      allow delete: if false;
+
+      match /applications/{uid} {
+        allow get: if signedIn()
+          && (uid == request.auth.uid || get(groupPath(groupId)).data.ownerUid == request.auth.uid);
+        allow list: if signedIn() && get(groupPath(groupId)).data.ownerUid == request.auth.uid;
+        allow create: if signedIn()
+          && uid == request.auth.uid
+          && request.resource.data.keys().hasAll([
+            'schemaVersion', 'applicantUid', 'item', 'cbm', 'weight', 'packaging',
+            'condition', 'notes', 'status', 'appliedAt', 'updatedAt'
+          ])
+          && request.resource.data.keys().hasOnly([
+            'schemaVersion', 'applicantUid', 'item', 'cbm', 'weight', 'packaging',
+            'condition', 'notes', 'status', 'appliedAt', 'updatedAt'
+          ])
+          && request.resource.data.schemaVersion == 2
+          && request.resource.data.applicantUid == uid
+          && request.resource.data.status == 'active'
+          && validCargoFields(request.resource.data)
+          && request.resource.data.appliedAt == request.time
+          && request.resource.data.updatedAt == request.time
+          && get(groupPath(groupId)).data.ownerUid != uid
+          && getAfter(groupPath(groupId)).data.activeCargoCount
+            == get(groupPath(groupId)).data.get('activeCargoCount', get(groupPath(groupId)).data.get('members', 1)) + 1;
+        allow update: if false;
+        allow delete: if signedIn()
+          && uid == request.auth.uid
+          && resource.data.applicantUid == uid
+          && getAfter(groupPath(groupId)).data.activeCargoCount
+            == get(groupPath(groupId)).data.get('activeCargoCount', get(groupPath(groupId)).data.get('members', 1)) - 1;
+      }
+    }
+
+    match /users/{uid} {
+      allow get: if signedIn() && uid == request.auth.uid;
+      allow list: if false;
+      allow create: if signedIn()
+        && uid == request.auth.uid
+        && request.resource.data.keys().hasAll([
+          'trustScore', 'penaltyCount', 'groupCreationBlockedUntil', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'trustScore', 'penaltyCount', 'groupCreationBlockedUntil', 'updatedAt'
+        ])
+        && request.resource.data.trustScore is number
+        && request.resource.data.trustScore >= 0
+        && request.resource.data.trustScore <= 90
+        && request.resource.data.penaltyCount is int
+        && request.resource.data.penaltyCount >= 1
+        && request.resource.data.groupCreationBlockedUntil is timestamp
+        && request.resource.data.groupCreationBlockedUntil > request.time + duration.value(6, 'd')
+        && request.resource.data.updatedAt == request.time;
+      allow update: if signedIn()
+        && uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'trustScore', 'penaltyCount', 'groupCreationBlockedUntil', 'updatedAt'
+        ])
+        && request.resource.data.trustScore
+          == (resource.data.get('trustScore', 100) >= 10 ? resource.data.get('trustScore', 100) - 10 : 0)
+        && request.resource.data.penaltyCount == resource.data.get('penaltyCount', 0) + 1
+        && request.resource.data.groupCreationBlockedUntil is timestamp
+        && request.resource.data.groupCreationBlockedUntil > request.time + duration.value(6, 'd')
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+
+      match /penalties/{groupId} {
+        allow read: if signedIn() && uid == request.auth.uid;
+        allow create: if signedIn()
+          && uid == request.auth.uid
+          && request.resource.data.keys().hasAll([
+            'groupId', 'ownerUid', 'participantCount', 'trustScoreDelta', 'blockedDays', 'createdAt'
+          ])
+          && request.resource.data.keys().hasOnly([
+            'groupId', 'ownerUid', 'participantCount', 'trustScoreDelta', 'blockedDays', 'createdAt'
+          ])
+          && request.resource.data.groupId == groupId
+          && request.resource.data.ownerUid == uid
+          && request.resource.data.participantCount is int
+          && request.resource.data.participantCount > 0
+          && request.resource.data.trustScoreDelta == -10
+          && request.resource.data.blockedDays == 7
+          && request.resource.data.createdAt == request.time
+          && getAfter(groupPath(groupId)).data.ownerUid == uid
+          && getAfter(groupPath(groupId)).data.status == 'cancelled';
+        allow update, delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
