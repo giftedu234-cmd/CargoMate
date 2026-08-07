@@ -175,8 +175,8 @@ const cardMarkup = group => {
       <h4><i class="fa-solid fa-box"></i> 그룹 개설자 화물 정보</h4>
       <div class="cargo-facts">
         <div><span>품목</span><b>${safe(cargo.item || '미입력')}</b></div>
-        <div><span>화물 부피</span><b>${safe(formatNumber(cargo.cbm))} CBM</b></div>
-        <div><span>중량</span><b>${safe(formatNumber(cargo.weight))} kg</b></div>
+        <div><span>화물 부피</span><b>${Number(cargo.cbm) > 0 ? `${safe(formatNumber(cargo.cbm))} CBM` : '미입력'}</b></div>
+        <div><span>중량</span><b>${Number(cargo.weight) > 0 ? `${safe(formatNumber(cargo.weight))} kg` : '미입력'}</b></div>
         <div><span>포장 형태</span><b>${safe(cargo.packaging || '미입력')}</b></div>
         <div><span>운송 조건</span><b>${safe(cargo.condition || '미입력')}</b></div>
       </div>

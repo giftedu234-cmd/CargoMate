@@ -1,6 +1,6 @@
 import {
   watchSignedInUser,
-  subscribeCargoData,
+  subscribeGroups,
   dashboardStats
 } from './firebase-store.js';
 
@@ -51,9 +51,8 @@ const startCargo = () => {
 
   render(null, 'loading', 'Firebase에서 실시간 현황을 불러오는 중…');
   try {
-    stopCargoSubscription = subscribeCargoData(
-      currentUser.uid,
-      ({ groups }) => {
+    stopCargoSubscription = subscribeGroups(
+      groups => {
         latestGroups = groups;
         hasCargoSnapshot = true;
         renderLatestGroups();

@@ -76,20 +76,27 @@ export const watchSignedInUser = callback => onAuthStateChanged(auth, user => ca
 
 export const normalizeGroup = snapshot => {
   const data = snapshot.data();
-  const minCbm = Math.max(0.1, numberOr(data.minCbm ?? data.capacityCbm, 28));
   const legacyFill = Math.max(0, numberOr(data.fillPercent ?? data.fill));
+  const legacyRemaining = Math.max(0, numberOr(data.remaining));
+  const explicitCapacity = numberOr(data.capacityCbm ?? data.minCbm);
+  const inferredCapacity = legacyFill > 0 && legacyFill < 100 && legacyRemaining > 0
+    ? legacyRemaining / (1 - legacyFill / 100)
+    : 28;
+  const capacityCbm = Math.max(0.1, rounded(explicitCapacity || inferredCapacity));
+  const minCbm = Math.max(0.1, rounded(numberOr(data.minCbm, capacityCbm)));
+  const inferredCurrent = rounded(capacityCbm * legacyFill / 100);
   const creatorCargo = data.creatorCargo || {
     item: data.cargoItem || '화물 정보 미입력',
-    cbm: rounded(numberOr(data.ownerCbm, legacyFill ? minCbm * legacyFill / 100 : 0)),
+    cbm: rounded(numberOr(data.ownerCbm)),
     weight: numberOr(data.weight),
     packaging: data.packaging || '미입력',
     condition: data.condition || '일반 화물',
     notes: data.notes || ''
   };
-  const currentCbm = Math.max(0, rounded(numberOr(
-    data.currentCbm,
-    numberOr(creatorCargo.cbm, legacyFill ? minCbm * legacyFill / 100 : 0)
-  )));
+  const explicitCurrent = Number(data.currentCbm);
+  const currentCbm = Math.max(0, rounded(Number.isFinite(explicitCurrent)
+    ? explicitCurrent
+    : (legacyFill ? inferredCurrent : numberOr(creatorCargo.cbm))));
   const legacyCount = Math.max(1, Math.round(numberOr(data.members ?? data.memberCount, 1)));
   const activeCargoCount = Math.max(1, Math.round(numberOr(data.activeCargoCount, legacyCount)));
 
@@ -105,7 +112,7 @@ export const normalizeGroup = snapshot => {
     type: data.type || data.containerType || '40ft HQ',
     status: normalizedStatus(data.status),
     minCbm,
-    capacityCbm: Math.max(minCbm, numberOr(data.capacityCbm, minCbm)),
+    capacityCbm: Math.max(minCbm, capacityCbm),
     currentCbm,
     activeCargoCount,
     creatorCargo: {
@@ -162,6 +169,14 @@ export const dashboardStats = (groups, now = new Date()) => {
       : 0
   };
 };
+
+export const subscribeGroups = (onData, onError = () => {}) => onSnapshot(
+  groupsCollection,
+  snapshot => onData(snapshot.docs
+    .map(normalizeGroup)
+    .sort((a, b) => (a.departureDate || '').localeCompare(b.departureDate || ''))),
+  onError
+);
 
 export const subscribeCargoData = (uid, onData, onError = () => {}) => {
   if (!uid) throw storeError('auth-required', '로그인이 필요합니다.');

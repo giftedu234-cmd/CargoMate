@@ -47,14 +47,16 @@ service cloud.firestore {
     }
 
     function oldCurrentCbm() {
-      return resource.data.get(
-        'currentCbm',
-        resource.data.get('minCbm', 28) * resource.data.get('fill', 0) / 100
-      );
+      return resource.data.get('currentCbm', groupCapacity() * resource.data.get('fill', 0) / 100);
     }
 
     function groupCapacity() {
-      return resource.data.get('capacityCbm', resource.data.get('minCbm', 28));
+      let fill = resource.data.get('fill', 0);
+      let remaining = resource.data.get('remaining', 0);
+      let inferred = fill > 0 && fill < 100 && remaining > 0
+        ? remaining / (1 - fill / 100)
+        : 28;
+      return resource.data.get('capacityCbm', resource.data.get('minCbm', inferred));
     }
 
     function validGroupCreate() {
@@ -114,19 +116,19 @@ service cloud.firestore {
         && request.resource.data.activeCargoCount is int
         && request.resource.data.currentCbm is number
         && request.resource.data.currentCbm > 0
-        && request.resource.data.currentCbm <= capacity
+        && request.resource.data.currentCbm <= capacity + 0.05
         && (
           (!beforeApplication && afterApplication
             && getAfter(applicationPath(groupId, request.auth.uid)).data.applicantUid == request.auth.uid
             && request.resource.data.activeCargoCount == oldCount() + 1
-            && newCbm - oldCbm >= getAfter(applicationPath(groupId, request.auth.uid)).data.cbm - 0.001
-            && newCbm - oldCbm <= getAfter(applicationPath(groupId, request.auth.uid)).data.cbm + 0.001)
+            && newCbm - oldCbm >= getAfter(applicationPath(groupId, request.auth.uid)).data.cbm - 0.05
+            && newCbm - oldCbm <= getAfter(applicationPath(groupId, request.auth.uid)).data.cbm + 0.05)
           ||
           (beforeApplication && !afterApplication
             && get(applicationPath(groupId, request.auth.uid)).data.applicantUid == request.auth.uid
             && request.resource.data.activeCargoCount == oldCount() - 1
-            && oldCbm - newCbm >= get(applicationPath(groupId, request.auth.uid)).data.cbm - 0.001
-            && oldCbm - newCbm <= get(applicationPath(groupId, request.auth.uid)).data.cbm + 0.001)
+            && oldCbm - newCbm >= get(applicationPath(groupId, request.auth.uid)).data.cbm - 0.05
+            && oldCbm - newCbm <= get(applicationPath(groupId, request.auth.uid)).data.cbm + 0.05)
         );
     }
 
@@ -183,7 +185,7 @@ service cloud.firestore {
           && validCargoFields(request.resource.data)
           && request.resource.data.appliedAt == request.time
           && request.resource.data.updatedAt == request.time
-          && get(groupPath(groupId)).data.ownerUid != uid
+          && get(groupPath(groupId)).data.get('ownerUid', '') != uid
           && getAfter(groupPath(groupId)).data.activeCargoCount
             == get(groupPath(groupId)).data.get('activeCargoCount', get(groupPath(groupId)).data.get('members', 1)) + 1;
         allow update: if false;
