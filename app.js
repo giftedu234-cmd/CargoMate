@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   window.setCargoDashboard(null, { state: 'auth' });
-  import('./firebase-data.js').catch(() => {
+  import('./firebase-data.js?v=20260807-2').catch(() => {
     window.setCargoDashboard(null, { state: 'error' });
   });
 });

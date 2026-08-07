@@ -8,7 +8,7 @@ import {
   cancelCargoApplication,
   subscribeUserProfile,
   explainStoreError
-} from './firebase-store.js';
+} from './firebase-store.js?v=20260807-2';
 
 const $ = selector => document.querySelector(selector);
 const safe = value => String(value ?? '').replace(/[&<>'"]/g, character => ({

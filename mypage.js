@@ -6,7 +6,7 @@ import {
   subscribeUserProfile,
   cancelOwnedGroup,
   explainStoreError
-} from './firebase-store.js';
+} from './firebase-store.js?v=20260807-2';
 
 const createdBox = document.getElementById('createdGroups');
 const joinedBox = document.getElementById('joinedGroups');
