@@ -1,11 +1,7 @@
 import {
   watchSignedInUser,
-  subscribeCargoData,
   groupMetrics,
-  isRecruiting,
-  subscribeUserProfile,
-  cancelOwnedGroup,
-  explainStoreError
+  isRecruiting
 } from './firebase-store.js?v=20260807-3';
 
 const createdBox = document.getElementById('createdGroups');
@@ -37,6 +33,7 @@ let stopCargoData = null;
 let stopProfile = null;
 
 const localApplicationKey = uid => `cargomate-local-applications-v1-${uid}`;
+const localGroupsKey = 'cargomate-local-groups-v1';
 const loadLocalApplications = uid => {
   try {
     const value = JSON.parse(localStorage.getItem(localApplicationKey(uid)) || '{}');
@@ -50,6 +47,15 @@ const mergeApplications = remoteApplications => {
   remoteApplications.forEach((application, groupId) => merged.set(groupId, application));
   return merged;
 };
+const loadLocalGroups = () => {
+  try {
+    const value = JSON.parse(localStorage.getItem(localGroupsKey) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+};
+const saveLocalGroups = () => localStorage.setItem(localGroupsKey, JSON.stringify(groups));
 
 const safe = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -134,7 +140,7 @@ const renderCreatedGroups = () => {
   createdBox.innerHTML = ownedGroups.length ? ownedGroups.map(group => {
     const metrics = groupMetrics(group);
     const status = statusFor(group);
-    const canCancel = isRecruiting(group) && applicationAccess === 'ready';
+    const canCancel = isRecruiting(group);
     const cargo = group.creatorCargo || {};
     return `
       <article class="card my-card">
@@ -147,7 +153,7 @@ const renderCreatedGroups = () => {
         <p>개설 화물: <b>${safe(cargo.item || '미입력')}</b> · ${safe(formatNumber(cargo.cbm))} CBM · ${safe(formatNumber(cargo.weight))} kg</p>
         <div class="space-row my-volume-row"><span>${formatNumber(metrics.currentCbm)} / ${formatNumber(group.capacityCbm || group.minCbm)} CBM</span><b>${metrics.fillPercent}%</b></div>
         <div class="progress" aria-label="적재율 ${metrics.fillPercent}%"><span style="width:${metrics.fillPercent}%"></span></div>
-        ${canCancel ? `<button class="btn danger-btn owner-cancel" data-group-id="${safe(group.id)}" type="button">그룹 취소</button>` : `<p class="closed-help">${applicationAccess !== 'ready' && isRecruiting(group) ? 'Firestore 규칙 적용 후 그룹을 취소할 수 있습니다.' : group.status === 'cancelled' ? '취소된 그룹입니다.' : '모집 마감 이후에는 그룹을 취소할 수 없습니다.'}</p>`}
+        ${canCancel ? `<button class="btn danger-btn owner-cancel" data-group-id="${safe(group.id)}" type="button">그룹 취소</button>` : `<p class="closed-help">${group.status === 'cancelled' ? '취소된 그룹입니다.' : '모집 마감 이후에는 그룹을 취소할 수 없습니다.'}</p>`}
       </article>`;
   }).join('') : emptyCard('아직 만든 그룹이 없습니다.', '화물 조건을 입력해 새로운 출항 그룹을 만들어 보세요.', '새 그룹 만들기');
 };
@@ -165,7 +171,7 @@ const renderJoinedGroups = () => {
   const groupsById = new Map(groups.map(group => [group.id, group]));
   const joined = [...myApplications.entries()]
     .map(([groupId, application]) => ({ group: groupsById.get(groupId), application }))
-    .filter(item => item.group);
+    .filter(item => item.group && item.group.ownerUid !== currentUser?.uid);
 
   joinedBox.innerHTML = joined.length ? joined.map(({ group, application }) => {
     const status = statusFor(group);
@@ -229,9 +235,14 @@ const confirmCancellation = async () => {
   confirmCancelButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 취소 처리 중';
 
   try {
-    const result = await cancelOwnedGroup(currentUser, targetGroupId);
+    const targetGroup = groups.find(group => group.id === targetGroupId && group.ownerUid === currentUser.uid);
+    if (!targetGroup) throw new Error('내가 만든 그룹을 찾을 수 없습니다.');
+    targetGroup.status = 'cancelled';
+    targetGroup.cancelledAt = new Date().toISOString();
+    saveLocalGroups();
+    render();
     closeCancelModal({ restoreFocus: false, force: true });
-    const participantCount = Number(result?.participantCount ?? expectedParticipants);
+    const participantCount = expectedParticipants;
     showNotice(
       participantCount > 0
         ? '그룹을 취소했습니다. 신뢰 점수 10점 차감과 7일 그룹 생성 제한이 적용되었습니다.'
@@ -239,7 +250,7 @@ const confirmCancellation = async () => {
     );
   } catch (error) {
     closeCancelModal({ restoreFocus: false, force: true });
-    showNotice(explainStoreError(error), 'error');
+    showNotice(error?.message || '그룹을 취소하지 못했습니다.', 'error');
   } finally {
     cancelInProgress = false;
     confirmCancelButton.disabled = false;
@@ -271,48 +282,24 @@ const stopSubscriptions = () => {
 watchSignedInUser(user => {
   stopSubscriptions();
   currentUser = user;
-  groups = [];
+  groups = loadLocalGroups();
   myApplications = new Map();
   localApplications = user ? loadLocalApplications(user.uid) : new Map();
   profile = { trustScore: 100, penaltyCount: 0, blockedUntil: null };
   profileError = '';
   dataError = '';
-  dataReady = false;
-  applicationAccess = 'pending';
-  profileReady = false;
+  dataReady = Boolean(user);
+  applicationAccess = 'local';
+  profileReady = Boolean(user);
 
   if (!user) {
     setLiveStatus('로그인 정보를 확인하는 중입니다.', 'loading');
     return;
   }
 
-  setLiveStatus('', 'loading');
+  myApplications = mergeApplications(new Map());
+  setLiveStatus('', 'live');
   render();
-  stopCargoData = subscribeCargoData(user.uid, data => {
-    groups = data.groups;
-    myApplications = mergeApplications(data.myApplications);
-    applicationAccess = data.applicationAccess;
-    dataError = '';
-    dataReady = true;
-    setLiveStatus('', 'live');
-    render();
-  }, error => {
-    dataError = explainStoreError(error);
-    dataReady = true;
-    setLiveStatus('', 'error');
-    render();
-  });
-
-  stopProfile = subscribeUserProfile(user.uid, value => {
-    profile = value;
-    profileError = '';
-    profileReady = true;
-    renderProfile();
-  }, error => {
-    profileError = explainStoreError(error);
-    profileReady = true;
-    renderProfile();
-  });
 });
 
 window.addEventListener('pagehide', stopSubscriptions, { once: true });
