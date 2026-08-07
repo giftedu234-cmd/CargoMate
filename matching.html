@@ -47,7 +47,8 @@
     <div class="section-heading"><span class="eyebrow">CARGO MATCHING</span><h1>출항 가능성과 화물 정보를 확인하고 참여하세요</h1><p class="muted">그룹 개설자의 화물 조건을 먼저 확인한 뒤, 내 화물 정보를 모두 입력해야 참여 신청이 완료됩니다.</p></div>
     <form id="matchForm" class="form-card">
       <label>출발 항구<select id="origin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
-      <label>도착 항구<select id="destination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option></select></label>
+      <label>도착 항구<select id="destination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option><option value="__custom__">직접 입력</option></select></label>
+      <label id="destinationCustomField" hidden>도착 항구 직접 입력<input id="destinationCustom" type="text" maxlength="80" placeholder="예: 시드니항 (호주)"></label>
       <label>희망 선적일<input id="sailingDate" type="date"></label>
       <label>화물 부피 (CBM)<input id="cargoCbm" type="number" value="6" min="0.1" step="0.1" required></label>
       <button class="btn" type="submit">매칭 검색</button>
@@ -57,7 +58,8 @@
     <div class="space-row" style="margin-top:28px"><div><h2 style="margin:0">출항 그룹</h2><p class="muted" id="matchSummary" style="margin:7px 0 0">데이터 연결을 기다리고 있습니다.</p></div><button id="openCreate" class="btn" type="button" disabled>+ 새 그룹 만들기</button></div>
     <form id="createForm" class="form-card" hidden style="margin-top:18px">
       <label>출발 항구<select id="newOrigin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
-      <label>도착 항구<select id="newDestination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option></select></label>
+      <label>도착 항구<select id="newDestination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option><option value="__custom__">직접 입력</option></select></label>
+      <label id="newDestinationCustomField" hidden>도착 항구 직접 입력<input id="newDestinationCustom" type="text" maxlength="80" placeholder="예: 시드니항 (호주)"></label>
       <label>출항 목표일<input id="newDate" type="date" required></label>
       <label>모집 마감 기준<select id="newDeadlineOffset" required><option value="7">출항 목표일 1주 전</option><option value="14">출항 목표일 2주 전</option></select></label>
       <label>자동 계산된 모집 마감일<input id="newDeadline" type="date" readonly required></label>
@@ -71,7 +73,7 @@
       <button class="btn" type="submit">그룹 등록하기</button>
     </form>
     <div class="success" id="createNotice" role="status" aria-live="polite">새 그룹을 등록했습니다. 개설자의 화물 정보도 그룹 카드에 표시됩니다.</div>
-    <div class="grid-3" id="matchResults" aria-busy="true" style="margin-top:22px"><article class="empty">Firebase 그룹 데이터를 불러오는 중입니다.</article></div>
+    <div class="grid-3" id="matchResults" aria-busy="true" style="margin-top:22px"><article class="empty">그룹 데이터를 불러오는 중입니다.</article></div>
   </div></main>
 
   <div class="confirm-overlay" id="joinModal" hidden>
@@ -80,7 +82,7 @@
       <form id="joinForm">
         <div class="join-fields">
           <label>운송 품목<input name="item" type="text" maxlength="80" placeholder="예: 의류, 전자부품" required></label>
-          <label>화물 부피 (CBM)<input name="cbm" type="number" min="0.1" step="0.1" required></label>
+          <label>화물 부피 (CBM)<input name="cbm" type="number" min="0.1" step="0.1" required><small id="joinCbmHelp" class="muted"></small></label>
           <label>화물 중량 (kg)<input name="weight" type="number" min="0.1" step="0.1" required></label>
           <label>포장 형태<select name="packaging" required><option value="">선택</option><option>팔레트</option><option>박스</option><option>목재 상자</option><option>드럼</option><option>기타</option></select></label>
           <label>운송 조건<select name="condition" required><option value="">선택</option><option>일반 화물</option><option>냉장</option><option>냉동</option><option>위험물</option><option>파손 주의</option></select></label>
@@ -105,7 +107,7 @@
   </div>
 
   <footer class="footer">© 2026 CargoMate · 화주 주도형 컨테이너 공유 플랫폼</footer>
-  <script type="module" src="matching.js?v=20260807-6"></script>
+  <script type="module" src="matching.js?v=20260807-7"></script>
   <script src="auth-gate.js"></script>
   <script type="module" src="firebase-auth.js?v=20260807-3"></script>
 </body>

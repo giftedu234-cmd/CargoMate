@@ -1,13 +1,7 @@
 import {
   watchSignedInUser,
-  subscribeCargoData,
   groupMetrics,
-  isRecruiting,
-  createCargoGroup,
-  applyToCargoGroup,
-  cancelCargoApplication,
-  subscribeUserProfile,
-  explainStoreError
+  isRecruiting
 } from './firebase-store.js?v=20260807-3';
 
 const $ = selector => document.querySelector(selector);
@@ -50,6 +44,7 @@ let createNoticeCleanupTimer = null;
 const pendingGroups = new Set();
 
 const localApplicationKey = uid => `cargomate-local-applications-v1-${uid}`;
+const localGroupsKey = 'cargomate-local-groups-v1';
 const loadLocalApplications = uid => {
   try {
     const value = JSON.parse(localStorage.getItem(localApplicationKey(uid)) || '{}');
@@ -68,6 +63,16 @@ const mergeApplications = remoteApplications => {
   return merged;
 };
 
+const loadLocalGroups = () => {
+  try {
+    const value = JSON.parse(localStorage.getItem(localGroupsKey) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+};
+const saveLocalGroups = () => localStorage.setItem(localGroupsKey, JSON.stringify(groups));
+
 const localDateString = date => {
   const value = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(value.getTime())) return '';
@@ -82,6 +87,25 @@ const shiftDate = (value, days) => {
   if (Number.isNaN(date.getTime())) return '';
   date.setDate(date.getDate() + days);
   return localDateString(date);
+};
+
+const selectedDestination = (selectId, inputId) => {
+  const selected = $(selectId).value;
+  return selected === '__custom__' ? $(inputId).value.trim() : selected;
+};
+
+const setupCustomDestination = (selectId, fieldId, inputId) => {
+  const select = $(selectId);
+  const field = $(fieldId);
+  const input = $(inputId);
+  const update = () => {
+    const custom = select.value === '__custom__';
+    field.hidden = !custom;
+    input.required = custom;
+    if (custom) input.focus();
+  };
+  select.addEventListener('change', update);
+  update();
 };
 
 const formatDate = value => {
@@ -156,7 +180,7 @@ const filteredGroups = () => {
   if (!filterActive) return recruiting;
 
   const origin = $('#origin').value;
-  const destination = $('#destination').value;
+  const destination = selectedDestination('#destination', '#destinationCustom');
   const sailingDate = $('#sailingDate').value;
   const cargoCbm = Number($('#cargoCbm').value) || 0;
   return recruiting.filter(group => {
@@ -214,7 +238,7 @@ const cardMarkup = group => {
     <p class="muted" style="font-size:12px;margin:0 0 10px">모집 중 → 최소 물량 달성 → 출항 확정</p>
     <div class="space-row"><span>최소 ${safe(formatNumber(group.minCbm))} CBM 중 <b>${safe(formatNumber(metrics.currentCbm))} CBM 확보</b></span><b style="color:${stage.color}">${metrics.remainingCbm ? `${safe(formatNumber(metrics.remainingCbm))} CBM 더 필요` : '출항 확인 가능'}</b></div>
     <div class="progress"><span style="width:${progress}%;background:${stage.color}"></span></div>
-    <div class="space-row" style="font-size:13px"><span>모집 마감: ${safe(formatDate(group.deadline))}</span><span>실시간 반영</span></div>
+    <div class="space-row" style="font-size:13px"><span>모집 마감: ${safe(formatDate(group.deadline))}</span><span>모집 현황</span></div>
     ${applicationMarkup}
     ${action}
   </article>`;
@@ -225,13 +249,13 @@ const render = () => {
   result.setAttribute('aria-busy', String(!dataConnected));
 
   if (!dataConnected && !groups.length) {
-    summary.textContent = 'Firebase 데이터 연결을 기다리고 있습니다.';
-    result.innerHTML = '<article class="empty">Firebase 그룹 데이터를 불러오는 중입니다.</article>';
+    summary.textContent = '그룹 데이터를 불러오는 중입니다.';
+    result.innerHTML = '<article class="empty">그룹 데이터를 불러오는 중입니다.</article>';
     return;
   }
 
   summary.textContent = visibleGroups.length
-    ? `${visibleGroups.length}개의 실시간 출항 그룹을 찾았습니다. 개설자 화물과 출항 조건을 확인해 주세요.`
+    ? `${visibleGroups.length}개의 출항 그룹을 찾았습니다. 개설자 화물과 출항 조건을 확인해 주세요.`
     : filterActive
       ? '입력한 조건과 적재 가능 부피에 맞는 그룹이 없습니다. 새 그룹을 만들어 보세요.'
       : '현재 모집 중인 그룹이 없습니다. 새 그룹을 만들어 보세요.';
@@ -257,7 +281,10 @@ const render = () => {
       activeJoinId = groupId;
       $('#joinGroupName').textContent = `${group.origin} → ${group.destination} · ${formatDate(group.departureDate)} 출항 목표`;
       joinForm.reset();
-      joinForm.elements.cbm.value = $('#cargoCbm').value || '';
+      const remainingCbm = groupMetrics(group).remainingCbm;
+      joinForm.elements.cbm.max = String(remainingCbm);
+      joinForm.elements.cbm.value = Math.min(Number($('#cargoCbm').value) || remainingCbm, remainingCbm);
+      $('#joinCbmHelp').textContent = `최대 ${formatNumber(remainingCbm)} CBM까지 신청할 수 있습니다.`;
       joinModal.hidden = false;
       joinForm.elements.item.focus();
     });
@@ -278,6 +305,8 @@ $('#newDate').addEventListener('change', updateDeadline);
 $('#newDeadlineOffset').addEventListener('change', updateDeadline);
 $('#sailingDate').min = localToday();
 updateDeadline();
+setupCustomDestination('#destination', '#destinationCustomField', '#destinationCustom');
+setupCustomDestination('#newDestination', '#newDestinationCustomField', '#newDestinationCustom');
 
 openCreateButton.addEventListener('click', () => {
   const blockedUntil = activeCreationBlock();
@@ -295,7 +324,7 @@ openCreateButton.addEventListener('click', () => {
 createForm.addEventListener('submit', async event => {
   event.preventDefault();
   if (!currentUser || !dataConnected) {
-    showNotice('Firebase 로그인과 데이터 연결을 확인한 뒤 다시 시도해 주세요.', true);
+    showNotice('로그인 상태를 확인한 뒤 다시 시도해 주세요.', true);
     return;
   }
 
@@ -306,13 +335,13 @@ createForm.addEventListener('submit', async event => {
   }
 
   const submitButton = createForm.querySelector('[type="submit"]');
-  setButtonBusy(submitButton, true, 'Firebase에 등록 중…');
+  setButtonBusy(submitButton, true, '그룹 등록 중…');
   try {
     const deadlineOffsetDays = Number($('#newDeadlineOffset').value);
     const departureDate = $('#newDate').value;
     const input = {
       origin: $('#newOrigin').value,
-      destination: $('#newDestination').value,
+      destination: selectedDestination('#newDestination', '#newDestinationCustom'),
       departureDate,
       deadlineOffsetDays,
       deadline: shiftDate(departureDate, -deadlineOffsetDays),
@@ -327,14 +356,29 @@ createForm.addEventListener('submit', async event => {
         notes: $('#newNotes').value.trim()
       }
     };
-    await createCargoGroup(currentUser, input);
+    if (!input.destination) throw new Error('도착 항구를 입력해 주세요.');
+    if (!input.departureDate || !input.deadline) throw new Error('출항 목표일을 선택해 주세요.');
+    if (input.creatorCargo.cbm <= 0 || input.creatorCargo.cbm > input.minCbm) throw new Error('최소 출항 물량은 개설자 화물 부피 이상이어야 합니다.');
+    groups.unshift({
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      ownerUid: currentUser.uid,
+      ...input,
+      capacityCbm: input.minCbm,
+      currentCbm: input.creatorCargo.cbm,
+      activeCargoCount: 1,
+      status: 'recruiting',
+      storageMode: 'browser',
+      createdAt: new Date().toISOString()
+    });
+    saveLocalGroups();
     filterActive = false;
     createForm.reset();
+    $('#newDestination').dispatchEvent(new Event('change'));
     createForm.hidden = true;
     updateDeadline();
     showNotice();
   } catch (error) {
-    showNotice(explainStoreError(error), true);
+    showNotice(error?.message || '그룹을 등록하지 못했습니다.', true);
   } finally {
     setButtonBusy(submitButton, false);
   }
@@ -359,27 +403,31 @@ joinForm.addEventListener('submit', async event => {
       condition: String(form.get('condition')),
       notes: String(form.get('notes')).trim()
     };
-    if (applicationAccess === 'ready') {
-      await applyToCargoGroup(currentUser, groupId, cargo);
-      $('#successMessage').textContent = '화물 정보 입력과 그룹 참여 신청이 완료되었습니다.';
-    } else {
-      localApplications.set(groupId, {
-        ...cargo,
-        applicantUid: currentUser.uid,
-        status: 'active',
-        storageMode: 'browser',
-        appliedAt: new Date().toISOString()
-      });
-      saveLocalApplications();
-      myApplications = mergeApplications(new Map());
-      $('#successMessage').textContent = '그룹 참여 신청이 완료되었습니다.';
+    const targetGroup = groups.find(group => group.id === groupId);
+    if (!targetGroup) throw new Error('그룹을 찾을 수 없습니다.');
+    const remainingCbm = groupMetrics(targetGroup).remainingCbm;
+    if (!Number.isFinite(cargo.cbm) || cargo.cbm <= 0 || cargo.cbm > remainingCbm) {
+      throw new Error(`화물 부피는 최대 ${formatNumber(remainingCbm)} CBM까지 입력할 수 있습니다.`);
     }
+    localApplications.set(groupId, {
+      ...cargo,
+      applicantUid: currentUser.uid,
+      status: 'active',
+      storageMode: 'browser',
+      appliedAt: new Date().toISOString()
+    });
+    targetGroup.currentCbm = Number(targetGroup.currentCbm || 0) + cargo.cbm;
+    targetGroup.activeCargoCount = Number(targetGroup.activeCargoCount || 1) + 1;
+    saveLocalGroups();
+    saveLocalApplications();
+    myApplications = mergeApplications(new Map());
+    $('#successMessage').textContent = '화물 정보 입력과 그룹 참여 신청이 완료되었습니다.';
     activeJoinId = '';
     closeModal(joinModal);
     successModal.hidden = false;
     $('#closeSuccess').focus();
   } catch (error) {
-    showNotice(explainStoreError(error), true);
+    showNotice(error?.message || '참여 신청을 저장하지 못했습니다.', true);
   } finally {
     pendingGroups.delete(groupId);
     setButtonBusy(submitButton, false);
@@ -396,18 +444,22 @@ confirmCancelButton.addEventListener('click', async () => {
   render();
   try {
     const application = myApplications.get(groupId);
-    if (application?.storageMode === 'browser' || applicationAccess !== 'ready') {
-      localApplications.delete(groupId);
-      saveLocalApplications();
-      myApplications.delete(groupId);
-    } else {
-      await cancelCargoApplication(currentUser, groupId);
+    if (application) {
+      const targetGroup = groups.find(group => group.id === groupId);
+      if (targetGroup) {
+        targetGroup.currentCbm = Math.max(Number(targetGroup.creatorCargo?.cbm || 0), Number(targetGroup.currentCbm || 0) - Number(application.cbm || 0));
+        targetGroup.activeCargoCount = Math.max(1, Number(targetGroup.activeCargoCount || 1) - 1);
+        saveLocalGroups();
+      }
     }
+    localApplications.delete(groupId);
+    saveLocalApplications();
+    myApplications.delete(groupId);
     activeCancelId = '';
     closeModal(cancelModal);
     showNotice('그룹 참여 신청을 취소했습니다.');
   } catch (error) {
-    showNotice(explainStoreError(error), true);
+    showNotice(error?.message || '참여 신청을 취소하지 못했습니다.', true);
   } finally {
     pendingGroups.delete(groupId);
     setButtonBusy(confirmCancelButton, false);
@@ -437,12 +489,13 @@ const stopAuth = watchSignedInUser(user => {
   stopCargoData = null;
   stopProfile = null;
   currentUser = user;
-  groups = [];
+  groups = loadLocalGroups();
   myApplications = new Map();
   localApplications = user ? loadLocalApplications(user.uid) : new Map();
-  dataConnected = false;
-  applicationAccess = 'pending';
-  openCreateButton.disabled = true;
+  myApplications = mergeApplications(new Map());
+  dataConnected = Boolean(user);
+  applicationAccess = 'local';
+  openCreateButton.disabled = !user;
   render();
 
   if (!user) {
@@ -450,29 +503,8 @@ const stopAuth = watchSignedInUser(user => {
     return;
   }
 
-  setDataStatus('loading', '');
-  stopProfile = subscribeUserProfile(user.uid, nextProfile => {
-    profile = nextProfile;
-  }, () => {});
-
-  try {
-    stopCargoData = subscribeCargoData(user.uid, data => {
-      groups = data.groups;
-      myApplications = mergeApplications(data.myApplications);
-      applicationAccess = data.applicationAccess;
-      dataConnected = true;
-      openCreateButton.disabled = applicationAccess !== 'ready';
-      setDataStatus('ready', '');
-      render();
-    }, error => {
-      dataConnected = false;
-      openCreateButton.disabled = true;
-      setDataStatus('error', '');
-      render();
-    });
-  } catch (error) {
-    setDataStatus('error', '');
-  }
+  setDataStatus('ready', '');
+  render();
 });
 
 window.addEventListener('pagehide', () => {
