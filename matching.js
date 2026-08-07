@@ -117,6 +117,12 @@ const setDataStatus = (state, message) => {
 const showNotice = (text = '새 그룹을 등록했습니다. 개설자의 화물 정보도 그룹 카드에 표시됩니다.', isError = false) => {
   clearTimeout(createNoticeTimer);
   clearTimeout(createNoticeCleanupTimer);
+  if (String(text).includes('Firebase 데이터 권한이 없습니다') || String(text).includes('Firestore 보안 규칙을 확인해 주세요')) {
+    createNotice.textContent = '';
+    createNotice.style.display = 'none';
+    createNotice.classList.remove('is-visible', 'notice-error');
+    return;
+  }
   createNotice.textContent = text;
   createNotice.classList.toggle('notice-error', isError);
   createNotice.style.display = 'block';
