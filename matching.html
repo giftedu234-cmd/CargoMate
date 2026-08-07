@@ -93,19 +93,19 @@
 
   <div class="confirm-overlay" id="successModal" hidden>
     <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="successTitle">
-      <div class="confirm-icon success-icon"><i class="fa-solid fa-check"></i></div><h2 id="successTitle">완료!</h2><p class="muted">화물 정보가 Firebase에 등록되었고 그룹 참여 신청이 완료되었습니다.</p><button class="btn" id="closeSuccess" type="button" style="width:100%;margin-top:16px">확인</button>
+      <div class="confirm-icon success-icon"><i class="fa-solid fa-check"></i></div><h2 id="successTitle">완료!</h2><p class="muted" id="successMessage">화물 정보와 그룹 참여 신청을 저장했습니다.</p><button class="btn" id="closeSuccess" type="button" style="width:100%;margin-top:16px">확인</button>
     </section>
   </div>
 
   <div class="confirm-overlay" id="cancelModal" hidden>
     <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
-      <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h2 id="cancelTitle">참여 신청을 취소하시겠습니까?</h2><p class="muted">취소하면 Firebase에 저장된 화물 정보와 참여 신청 상태가 함께 삭제됩니다.</p>
+      <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h2 id="cancelTitle">참여 신청을 취소하시겠습니까?</h2><p class="muted">취소하면 저장된 화물 정보와 참여 신청 상태가 함께 삭제됩니다.</p>
       <div class="confirm-actions"><button class="btn btn-danger" id="confirmCancel" type="button">예</button><button class="btn btn-light" id="keepApplication" type="button">아니요</button></div>
     </section>
   </div>
 
-  <footer class="footer">© 2026 CargoMate · 그룹과 참여 현황은 Firebase에서 실시간으로 저장·반영됩니다.</footer>
-  <script type="module" src="matching.js?v=20260807-3"></script>
+  <footer class="footer">© 2026 CargoMate · 그룹은 Firebase 실시간, 권한 제한 시 참여 신청은 이 브라우저에 저장됩니다.</footer>
+  <script type="module" src="matching.js?v=20260807-4"></script>
   <script src="auth-gate.js"></script>
   <script type="module" src="firebase-auth.js?v=20260807-3"></script>
 </body>

@@ -36,6 +36,7 @@ const keepApplicationButton = $('#keepApplication');
 let currentUser = null;
 let groups = [];
 let myApplications = new Map();
+let localApplications = new Map();
 let profile = { blockedUntil: null };
 let dataConnected = false;
 let applicationAccess = 'pending';
@@ -47,6 +48,25 @@ let stopProfile = null;
 let createNoticeTimer = null;
 let createNoticeCleanupTimer = null;
 const pendingGroups = new Set();
+
+const localApplicationKey = uid => `cargomate-local-applications-v1-${uid}`;
+const loadLocalApplications = uid => {
+  try {
+    const value = JSON.parse(localStorage.getItem(localApplicationKey(uid)) || '{}');
+    return new Map(Object.entries(value && typeof value === 'object' ? value : {}));
+  } catch {
+    return new Map();
+  }
+};
+const saveLocalApplications = () => {
+  if (!currentUser) return;
+  localStorage.setItem(localApplicationKey(currentUser.uid), JSON.stringify(Object.fromEntries(localApplications)));
+};
+const mergeApplications = remoteApplications => {
+  const merged = new Map(localApplications);
+  remoteApplications.forEach((application, groupId) => merged.set(groupId, application));
+  return merged;
+};
 
 const localDateString = date => {
   const value = date instanceof Date ? date : new Date(date);
@@ -151,7 +171,7 @@ const cardMarkup = group => {
   const progress = Math.min(100, Math.max(0, metrics.fillPercent));
   const pending = pendingGroups.has(group.id);
   const isFull = metrics.remainingCbm <= 0;
-  const unavailable = pending || !dataConnected || applicationAccess !== 'ready';
+  const unavailable = pending || !dataConnected;
   const buttonLabel = pending
     ? '처리 중…'
     : application
@@ -165,7 +185,7 @@ const cardMarkup = group => {
     : `<button class="btn join${application ? ' cancel-application' : ''}" data-group-id="${safe(encodeURIComponent(group.id))}" data-applied="${Boolean(application)}" type="button" style="margin-top:18px;width:100%"${unavailable || (isFull && !application) ? ' disabled' : ''}>${buttonLabel}</button>`;
 
   const applicationMarkup = application
-    ? `<div class="my-application">내 신청 화물: ${safe(application.item)} · ${safe(formatNumber(application.cbm))} CBM · ${safe(formatNumber(application.weight))} kg · ${safe(application.condition)}</div>`
+    ? `<div class="my-application">내 신청 화물: ${safe(application.item)} · ${safe(formatNumber(application.cbm))} CBM · ${safe(formatNumber(application.weight))} kg · ${safe(application.condition)}${application.storageMode === 'browser' ? ' · 이 브라우저에 저장됨' : ''}</div>`
     : '';
 
   return `<article class="card match-card">
@@ -324,14 +344,29 @@ joinForm.addEventListener('submit', async event => {
   setButtonBusy(submitButton, true, '신청 저장 중…');
   render();
   try {
-    await applyToCargoGroup(currentUser, groupId, {
+    const cargo = {
       item: String(form.get('item')).trim(),
       cbm: Number(form.get('cbm')),
       weight: Number(form.get('weight')),
       packaging: String(form.get('packaging')),
       condition: String(form.get('condition')),
       notes: String(form.get('notes')).trim()
-    });
+    };
+    if (applicationAccess === 'ready') {
+      await applyToCargoGroup(currentUser, groupId, cargo);
+      $('#successMessage').textContent = '화물 정보가 Firebase에 등록되었고 그룹 참여 신청이 완료되었습니다.';
+    } else {
+      localApplications.set(groupId, {
+        ...cargo,
+        applicantUid: currentUser.uid,
+        status: 'active',
+        storageMode: 'browser',
+        appliedAt: new Date().toISOString()
+      });
+      saveLocalApplications();
+      myApplications = mergeApplications(new Map());
+      $('#successMessage').textContent = '참여 신청을 이 브라우저에 저장했습니다. 다른 기기에는 표시되지 않습니다.';
+    }
     activeJoinId = '';
     closeModal(joinModal);
     successModal.hidden = false;
@@ -353,10 +388,17 @@ confirmCancelButton.addEventListener('click', async () => {
   keepApplicationButton.disabled = true;
   render();
   try {
-    await cancelCargoApplication(currentUser, groupId);
+    const application = myApplications.get(groupId);
+    if (application?.storageMode === 'browser' || applicationAccess !== 'ready') {
+      localApplications.delete(groupId);
+      saveLocalApplications();
+      myApplications.delete(groupId);
+    } else {
+      await cancelCargoApplication(currentUser, groupId);
+    }
     activeCancelId = '';
     closeModal(cancelModal);
-    showNotice('그룹 참여 신청을 취소했습니다. 실시간 현황에도 반영되었습니다.');
+    showNotice('그룹 참여 신청을 취소했습니다.');
   } catch (error) {
     showNotice(explainStoreError(error), true);
   } finally {
@@ -390,6 +432,7 @@ const stopAuth = watchSignedInUser(user => {
   currentUser = user;
   groups = [];
   myApplications = new Map();
+  localApplications = user ? loadLocalApplications(user.uid) : new Map();
   dataConnected = false;
   applicationAccess = 'pending';
   openCreateButton.disabled = true;
@@ -410,7 +453,7 @@ const stopAuth = watchSignedInUser(user => {
   try {
     stopCargoData = subscribeCargoData(user.uid, data => {
       groups = data.groups;
-      myApplications = data.myApplications;
+      myApplications = mergeApplications(data.myApplications);
       applicationAccess = data.applicationAccess;
       dataConnected = true;
       openCreateButton.disabled = applicationAccess !== 'ready';
@@ -418,7 +461,7 @@ const stopAuth = watchSignedInUser(user => {
       if (applicationAccess === 'ready') {
         setDataStatus('ready', `Firebase 실시간 연결됨 · 전체 ${groups.length}개 그룹 · ${syncedAt} 동기화`);
       } else {
-        setDataStatus('warning', `그룹 현황은 실시간 연결됨 · 참여·등록 기능은 Firestore 규칙 적용 후 사용할 수 있습니다.`);
+        setDataStatus('warning', '그룹 현황은 실시간 연결됨 · 참여 신청은 현재 브라우저에 저장됩니다.');
       }
       render();
     }, error => {

@@ -22,6 +22,7 @@ const keepGroupButton = document.getElementById('keepOwnerGroup');
 let currentUser = null;
 let groups = [];
 let myApplications = new Map();
+let localApplications = new Map();
 let profile = { trustScore: 100, penaltyCount: 0, blockedUntil: null };
 let profileError = '';
 let dataError = '';
@@ -34,6 +35,21 @@ let cancelInProgress = false;
 let returnFocusElement = null;
 let stopCargoData = null;
 let stopProfile = null;
+
+const localApplicationKey = uid => `cargomate-local-applications-v1-${uid}`;
+const loadLocalApplications = uid => {
+  try {
+    const value = JSON.parse(localStorage.getItem(localApplicationKey(uid)) || '{}');
+    return new Map(Object.entries(value && typeof value === 'object' ? value : {}));
+  } catch {
+    return new Map();
+  }
+};
+const mergeApplications = remoteApplications => {
+  const merged = new Map(localApplications);
+  remoteApplications.forEach((application, groupId) => merged.set(groupId, application));
+  return merged;
+};
 
 const safe = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -156,7 +172,7 @@ const renderJoinedGroups = () => {
       <article class="card my-card">
         <div class="space-row">
           <span class="group-state ${status.className}">${safe(status.label)}</span>
-          <span class="tag">참여 신청 완료</span>
+          <span class="tag">${application.storageMode === 'browser' ? '이 브라우저 신청' : '참여 신청 완료'}</span>
         </div>
         <h3>${safe(group.origin)} → ${safe(group.destination)}</h3>
         <p class="muted">출항 목표 ${safe(formatDate(group.departureDate))} · 모집 마감 ${safe(formatDate(group.deadline))}</p>
@@ -256,6 +272,7 @@ watchSignedInUser(user => {
   currentUser = user;
   groups = [];
   myApplications = new Map();
+  localApplications = user ? loadLocalApplications(user.uid) : new Map();
   profile = { trustScore: 100, penaltyCount: 0, blockedUntil: null };
   profileError = '';
   dataError = '';
@@ -272,13 +289,13 @@ watchSignedInUser(user => {
   render();
   stopCargoData = subscribeCargoData(user.uid, data => {
     groups = data.groups;
-    myApplications = data.myApplications;
+    myApplications = mergeApplications(data.myApplications);
     applicationAccess = data.applicationAccess;
     dataError = '';
     dataReady = true;
     setLiveStatus(
-      applicationAccess === 'ready' ? 'Firebase 실시간 동기화 중' : '그룹 조회만 연결됨 · Firestore 규칙 적용 필요',
-      applicationAccess === 'ready' ? 'live' : 'error'
+      applicationAccess === 'ready' ? 'Firebase 실시간 동기화 중' : '그룹은 실시간 · 참여 신청은 이 브라우저에 저장',
+      applicationAccess === 'ready' ? 'live' : 'loading'
     );
     render();
   }, error => {
