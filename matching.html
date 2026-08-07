@@ -6,57 +6,108 @@
   <title>화물 매칭 찾기 | CargoMate</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    .cancel-application{background:#fff1f1!important;color:#bd2525!important;border:1px solid #f2b8b8}
+    .confirm-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:#07162b99;backdrop-filter:blur(4px)}
+    .confirm-overlay[hidden]{display:none}
+    .confirm-dialog{width:min(100%,390px);padding:30px;border-radius:18px;background:#fff;text-align:center;box-shadow:0 24px 70px #07162b50}
+    .confirm-dialog h2{margin:14px 0 8px;font-size:22px}
+    .confirm-icon{display:grid;place-items:center;width:52px;height:52px;margin:auto;border-radius:50%;background:#fff0e9;color:#df5b2a;font-size:22px}
+    .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+    .btn-danger{background:#d43b3b}.btn-light{background:#e9eef5;color:#263951}
+  </style>
 </head>
 <body data-require-auth="true">
   <header class="header"><div class="container nav">
     <a class="brand" href="index.html"><span class="brand-icon"><i class="fa-solid fa-cubes-stacked"></i></span>화물메이트 <small>CargoMate</small></a>
     <nav class="menu"><a href="index.html">서비스 소개</a><a class="active" href="matching.html">화물 매칭 찾기</a><a href="calculator.html">운임 계산기</a><a href="quotes.html">그룹 견적</a><a href="mypage.html">마이페이지</a></nav>
   </div></header>
-
   <main class="section"><div class="container">
-    <div class="section-heading"><span class="eyebrow">CARGO MATCHING</span><h1>내 화물과 맞는 출항 그룹 찾기</h1><p class="muted">항구·희망 선적일·화물 부피를 입력해 참여할 그룹을 찾거나, 직접 새 그룹을 만들 수 있습니다.</p></div>
+    <div class="section-heading"><span class="eyebrow">CARGO MATCHING</span><h1>출항 가능성을 확인하고 그룹에 참여하세요</h1><p class="muted">그룹 참여는 출항 확정이 아닙니다. 최소 물량·모집 마감일·견적 단계까지 확인할 수 있습니다.</p></div>
     <form id="matchForm" class="form-card">
-      <label>출발 항구
-        <select id="origin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select>
-      </label>
-      <label>도착 항구
-        <select id="destination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option></select>
-      </label>
+      <label>출발 항구<select id="origin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
+      <label>도착 항구<select id="destination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option></select></label>
       <label>희망 선적일<input id="sailingDate" type="date"></label>
       <label>화물 부피 (CBM)<input id="cargoCbm" type="number" value="6" min="0.1" step="0.1" required></label>
       <button class="btn" type="submit">매칭 검색</button>
     </form>
-
-    <div class="space-row" style="margin-top:28px"><div><h2 style="margin:0">모집 중인 그룹</h2><p class="muted" id="matchSummary" style="margin:7px 0 0">데모 그룹을 불러오는 중입니다.</p></div><button id="openCreate" class="btn" type="button">+ 새 그룹 만들기</button></div>
+    <div class="space-row" style="margin-top:28px"><div><h2 style="margin:0">출항 그룹</h2><p class="muted" id="matchSummary" style="margin:7px 0 0"></p></div><button id="openCreate" class="btn" type="button">+ 새 그룹 만들기</button></div>
     <form id="createForm" class="form-card" hidden style="margin-top:18px">
       <label>출발 항구<select id="newOrigin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
       <label>도착 항구<select id="newDestination"><option>롱비치항 (미국)</option><option>로스앤젤레스항 (미국)</option><option>뉴욕·뉴저지항 (미국)</option><option>사바나항 (미국)</option><option>런던 게이트웨이항 (영국)</option><option>펠릭스토우항 (영국)</option><option>함부르크항 (독일)</option><option>로테르담항 (네덜란드)</option><option>싱가포르항 (싱가포르)</option><option>상하이항 (중국)</option><option>요코하마항 (일본)</option></select></label>
-      <label>출항 예정일<input id="newDate" type="date" required></label>
-      <label>모집 가능 부피 (CBM)<input id="newRemaining" type="number" min="0.1" step="0.1" value="10" required></label>
+      <label>출항 목표일<input id="newDate" type="date" required></label>
+      <label>최소 출항 물량 (CBM)<input id="newMinimum" type="number" min="1" step="0.1" value="28" required></label>
+      <label>내 화물 부피 (CBM)<input id="newMyVolume" type="number" min="0.1" step="0.1" value="8" required></label>
+      <label>모집 마감일<input id="newDeadline" type="date" required></label>
       <button class="btn" type="submit">그룹 등록하기</button>
     </form>
-    <div class="success" id="createNotice">새 그룹을 등록했습니다. 이 브라우저에 저장되며 목록에 바로 표시됩니다.</div>
+    <div class="success" id="createNotice">새 그룹을 등록했습니다. 이 브라우저에 저장되며 출항 조건을 함께 확인할 수 있습니다.</div>
     <div class="grid-3" id="matchResults" style="margin-top:22px"></div>
   </div></main>
-  <footer class="footer">© 2026 CargoMate · 화면의 화물 그룹은 데모용 예시입니다.</footer>
-
+  <div class="confirm-overlay" id="cancelModal" hidden>
+    <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
+      <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <h2 id="cancelTitle">참여 신청을 취소하시겠습니까?</h2>
+      <p class="muted">취소하면 해당 그룹의 참여 신청 상태가 해제됩니다.</p>
+      <div class="confirm-actions">
+        <button class="btn btn-danger" id="confirmCancel" type="button">예</button>
+        <button class="btn btn-light" id="keepApplication" type="button">아니요</button>
+      </div>
+    </section>
+  </div>
+  <footer class="footer">© 2026 CargoMate · 그룹 정보는 데모용 예시입니다.</footer>
   <script>
     (() => {
-      const storageKey = 'cargomate-created-groups';
+      const storageKey = 'cargomate-departure-groups';
+      const applicationKey = 'cargomate-group-applications';
       const seedGroups = [
-        {origin:'부산항', destination:'롱비치항 (미국)', departureDate:'2026-09-15', type:'40ft HQ', fill:65, remaining:12, members:3},
-        {origin:'인천항', destination:'상하이항 (중국)', departureDate:'2026-09-12', type:'40ft GP', fill:72, remaining:8, members:4},
-        {origin:'부산항', destination:'함부르크항 (독일)', departureDate:'2026-09-20', type:'40ft HQ', fill:54, remaining:18, members:2}
+        {origin:'부산항',destination:'롱비치항 (미국)',departureDate:'2026-09-15',deadline:'2026-09-08',type:'40ft HQ',currentCbm:22,minCbm:28,members:3},
+        {origin:'인천항',destination:'상하이항 (중국)',departureDate:'2026-09-12',deadline:'2026-09-06',type:'40ft GP',currentCbm:30,minCbm:28,members:4},
+        {origin:'부산항',destination:'함부르크항 (독일)',departureDate:'2026-09-20',deadline:'2026-09-12',type:'40ft HQ',currentCbm:18,minCbm:32,members:2}
       ];
-      const savedGroups = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      let groups = [...savedGroups, ...seedGroups];
+      const created = JSON.parse(localStorage.getItem(storageKey) || '[]').map(group => {
+        if (group.minCbm) return group;
+        const currentCbm = Math.max(0, 28 - (Number(group.remaining) || 0));
+        return {...group, minCbm: 28, currentCbm, deadline: group.deadline || group.departureDate};
+      });
+      let groups = [...created, ...seedGroups];
+      const appliedGroups = new Set(JSON.parse(localStorage.getItem(applicationKey) || '[]'));
       const result = document.getElementById('matchResults');
       const summary = document.getElementById('matchSummary');
-      const dateText = value => value ? new Intl.DateTimeFormat('ko-KR',{month:'numeric',day:'numeric'}).format(new Date(value + 'T00:00:00')) + ' 출항 예정' : '출항일 협의';
+      const cancelModal = document.getElementById('cancelModal');
+      let cancelTarget = null;
+      const formatDate = value => value ? new Intl.DateTimeFormat('ko-KR',{month:'numeric',day:'numeric'}).format(new Date(value + 'T00:00:00')) : '미정';
+      const groupKey = group => `${group.origin}|${group.destination}|${group.departureDate}`;
+      const saveApplications = () => localStorage.setItem(applicationKey, JSON.stringify([...appliedGroups]));
+      const setApplicationButton = (button, applied) => {
+        button.dataset.applied = String(applied);
+        button.textContent = applied ? '참여 신청 취소' : '그룹 참여 신청하기';
+        button.classList.toggle('cancel-application', applied);
+      };
+      const closeCancelModal = () => { cancelModal.hidden = true; cancelTarget = null; };
+      const stage = group => group.currentCbm >= group.minCbm ? {number:2,label:'최소 물량 달성 · 견적 비교 대기',color:'#0d9f6e'} : {number:1,label:'모집 중 · 최소 물량 확보 필요',color:'#1565d8'};
       const draw = list => {
-        summary.textContent = list.length ? `${list.length}개의 참여 가능한 그룹을 찾았습니다.` : '조건에 맞는 그룹이 없습니다. 새 그룹을 만들어 보세요.';
-        result.innerHTML = list.length ? list.map(group => `<article class="card match-card"><div class="space-row"><span class="tag">모집 중</span><small>화주 ${group.members}명</small></div><h3>${group.origin} → ${group.destination}</h3><p class="muted">${dateText(group.departureDate)} · ${group.type}</p><div class="space-row"><span>현재 <b>${group.fill}%</b> 채워짐</span><b style="color:#1479ff">${group.remaining} CBM 남음</b></div><div class="progress"><span style="width:${group.fill}%"></span></div><button class="btn join" type="button">그룹 참여 신청하기</button></article>`).join('') : '<article class="empty">조건을 바꾸거나 새 그룹을 등록해 보세요.</article>';
-        result.querySelectorAll('.join').forEach(button => button.onclick = () => { button.textContent = '참여 신청 완료'; button.disabled = true; button.style.background = '#0d9f6e'; });
+        summary.textContent = list.length ? `${list.length}개의 출항 그룹을 찾았습니다. 출항 확정 조건을 확인해 주세요.` : '조건에 맞는 그룹이 없습니다. 새 그룹을 만들어 보세요.';
+        result.innerHTML = list.length ? list.map((group,index) => {
+          const progress = Math.min(100, Math.round(group.currentCbm / group.minCbm * 100));
+          const remain = Math.max(0, group.minCbm - group.currentCbm);
+          const info = stage(group);
+          const key = groupKey(group);
+          const applied = appliedGroups.has(key);
+          return `<article class="card match-card"><div class="space-row"><span class="tag" style="color:${info.color}">${info.label}</span><small>화주 ${group.members}명</small></div><h3>${group.origin} → ${group.destination}</h3><p class="muted">출항 목표 ${formatDate(group.departureDate)} · ${group.type}</p><p style="font-size:13px;font-weight:800;margin:16px 0 6px">진행 단계: ${info.number}/4 · ${info.label}</p><p class="muted" style="font-size:12px;margin:0 0 10px">모집 중 → 최소 물량 달성 → 견적 비교 → 출항 확정</p><div class="space-row"><span>최소 ${group.minCbm} CBM 중 <b>${group.currentCbm} CBM 확보</b></span><b style="color:${info.color}">${remain ? remain + ' CBM 더 필요' : '견적 요청 가능'}</b></div><div class="progress"><span style="width:${progress}%;background:${info.color}"></span></div><div class="space-row" style="font-size:13px"><span>모집 마감: ${formatDate(group.deadline)}</span><span>출항 확정 전</span></div><button class="btn join${applied ? ' cancel-application' : ''}" data-key="${encodeURIComponent(key)}" data-applied="${applied}" type="button" style="margin-top:18px;width:100%">${applied ? '참여 신청 취소' : '그룹 참여 신청하기'}</button></article>`;
+        }).join('') : '<article class="empty">조건을 바꾸거나 새 그룹을 등록해 보세요.</article>';
+        result.querySelectorAll('.join').forEach(button => button.onclick = () => {
+          if (button.dataset.applied === 'true') {
+            cancelTarget = button;
+            cancelModal.hidden = false;
+            document.getElementById('confirmCancel').focus();
+            return;
+          }
+          const key = decodeURIComponent(button.dataset.key);
+          appliedGroups.add(key);
+          saveApplications();
+          setApplicationButton(button, true);
+        });
       };
       document.getElementById('matchForm').onsubmit = event => {
         event.preventDefault();
@@ -64,19 +115,26 @@
         const destination = document.getElementById('destination').value;
         const date = document.getElementById('sailingDate').value;
         const volume = Number(document.getElementById('cargoCbm').value) || 0;
-        draw(groups.filter(group => group.origin === origin && group.destination === destination && group.remaining >= volume && (!date || group.departureDate >= date)));
+        draw(groups.filter(group => group.origin === origin && group.destination === destination && group.minCbm - group.currentCbm >= volume && (!date || group.departureDate >= date)));
       };
-      document.getElementById('openCreate').onclick = () => {
-        const form = document.getElementById('createForm'); form.hidden = !form.hidden;
-        if (!form.hidden) document.getElementById('newDate').focus();
-      };
+      document.getElementById('openCreate').onclick = () => { const form = document.getElementById('createForm'); form.hidden = !form.hidden; if (!form.hidden) document.getElementById('newDate').focus(); };
       document.getElementById('createForm').onsubmit = event => {
         event.preventDefault();
-        const remaining = Number(document.getElementById('newRemaining').value);
-        const created = {origin:document.getElementById('newOrigin').value, destination:document.getElementById('newDestination').value, departureDate:document.getElementById('newDate').value, type:'40ft HQ', fill:0, remaining, members:1};
-        savedGroups.unshift(created); localStorage.setItem(storageKey, JSON.stringify(savedGroups)); groups.unshift(created);
+        const group = {origin:document.getElementById('newOrigin').value,destination:document.getElementById('newDestination').value,departureDate:document.getElementById('newDate').value,deadline:document.getElementById('newDeadline').value,type:'40ft HQ',minCbm:Number(document.getElementById('newMinimum').value),currentCbm:Number(document.getElementById('newMyVolume').value),members:1};
+        created.unshift(group); localStorage.setItem(storageKey, JSON.stringify(created)); groups.unshift(group);
         document.getElementById('createNotice').style.display = 'block'; event.target.reset(); event.target.hidden = true; draw(groups);
       };
+      document.getElementById('confirmCancel').onclick = () => {
+        if (!cancelTarget) return closeCancelModal();
+        const key = decodeURIComponent(cancelTarget.dataset.key);
+        appliedGroups.delete(key);
+        saveApplications();
+        setApplicationButton(cancelTarget, false);
+        closeCancelModal();
+      };
+      document.getElementById('keepApplication').onclick = closeCancelModal;
+      cancelModal.onclick = event => { if (event.target === cancelModal) closeCancelModal(); };
+      document.addEventListener('keydown', event => { if (event.key === 'Escape' && !cancelModal.hidden) closeCancelModal(); });
       draw(groups);
     })();
   </script>
