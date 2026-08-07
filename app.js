@@ -4,13 +4,13 @@ const dashboardState = {
 
 const dashboardLabels = {
   loading: {
-    badge: '연결 중',
-    message: 'Firebase 실시간 현황을 연결하는 중…',
+    badge: '계산 중',
+    message: '그룹 현황을 계산하는 중…',
     color: '#cbd5e1'
   },
   live: {
     badge: 'LIVE',
-    message: 'Firebase 실시간 연결됨 · 변경 사항이 자동 반영됩니다.',
+    message: '그룹 등록·참여 현황이 자동으로 반영됩니다.',
     color: '#69f0c0'
   },
   offline: {
@@ -20,7 +20,7 @@ const dashboardLabels = {
   },
   error: {
     badge: '오류',
-    message: 'Firebase 실시간 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+    message: '그룹 현황을 계산하지 못했습니다. 잠시 후 다시 시도해 주세요.',
     color: '#fca5a5'
   },
   auth: {
@@ -31,6 +31,43 @@ const dashboardLabels = {
 };
 
 const safeCount = value => Math.max(0, Math.round(Number(value) || 0));
+const localGroupsKey = 'cargomate-local-groups-v1';
+const exampleStats = [
+  { capacityCbm: 34, currentCbm: 22, activeCargoCount: 3 },
+  { capacityCbm: 32, currentCbm: 17.5, activeCargoCount: 2 },
+  { capacityCbm: 30, currentCbm: 12, activeCargoCount: 2 }
+];
+
+const loadDashboardGroups = () => {
+  let saved = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(localGroupsKey) || '[]');
+    if (Array.isArray(parsed)) saved = parsed;
+  } catch {
+    saved = [];
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const recruiting = saved.filter(group => {
+    if (group?.isExample || group?.status === 'cancelled' || group?.status === 'completed') return false;
+    if (!group?.deadline) return group?.status === 'recruiting';
+    const deadline = new Date(`${String(group.deadline).slice(0, 10)}T23:59:59`);
+    return group?.status === 'recruiting' && deadline >= today;
+  });
+  return [...exampleStats, ...recruiting];
+};
+
+const refreshLocalDashboard = () => {
+  try {
+    const groups = loadDashboardGroups();
+    const cargoCount = groups.reduce((sum, group) => sum + Math.max(1, Number(group.activeCargoCount) || 1), 0);
+    const fillRates = groups.map(group => Math.min(100, Math.max(0, (Number(group.currentCbm) || 0) / Math.max(0.1, Number(group.capacityCbm || group.minCbm) || 0.1) * 100)));
+    const averageFill = fillRates.length ? Math.round(fillRates.reduce((sum, value) => sum + value, 0) / fillRates.length) : 0;
+    window.setCargoDashboard({ cargoCount, groupCount: groups.length, averageFill }, { state: 'live' });
+  } catch {
+    window.setCargoDashboard(null, { state: 'error' });
+  }
+};
 
 window.setCargoDashboard = (stats, options = {}) => {
   if (stats) {
@@ -91,8 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  window.setCargoDashboard(null, { state: 'auth' });
-  import('./firebase-data.js?v=20260807-3').catch(() => {
-    window.setCargoDashboard(null, { state: 'error' });
+  refreshLocalDashboard();
+  window.addEventListener('storage', refreshLocalDashboard);
+  window.addEventListener('focus', refreshLocalDashboard);
+  window.addEventListener('pageshow', refreshLocalDashboard);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshLocalDashboard();
   });
+  window.setInterval(refreshLocalDashboard, 1000);
 });
