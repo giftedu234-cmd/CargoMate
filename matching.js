@@ -8,7 +8,7 @@ import {
   cancelCargoApplication,
   subscribeUserProfile,
   explainStoreError
-} from './firebase-store.js?v=20260807-2';
+} from './firebase-store.js?v=20260807-3';
 
 const $ = selector => document.querySelector(selector);
 const safe = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
@@ -38,6 +38,7 @@ let groups = [];
 let myApplications = new Map();
 let profile = { blockedUntil: null };
 let dataConnected = false;
+let applicationAccess = 'pending';
 let filterActive = false;
 let activeJoinId = '';
 let activeCancelId = '';
@@ -150,7 +151,7 @@ const cardMarkup = group => {
   const progress = Math.min(100, Math.max(0, metrics.fillPercent));
   const pending = pendingGroups.has(group.id);
   const isFull = metrics.remainingCbm <= 0;
-  const unavailable = pending || !dataConnected;
+  const unavailable = pending || !dataConnected || applicationAccess !== 'ready';
   const buttonLabel = pending
     ? '처리 중…'
     : application
@@ -390,6 +391,7 @@ const stopAuth = watchSignedInUser(user => {
   groups = [];
   myApplications = new Map();
   dataConnected = false;
+  applicationAccess = 'pending';
   openCreateButton.disabled = true;
   render();
 
@@ -409,10 +411,15 @@ const stopAuth = watchSignedInUser(user => {
     stopCargoData = subscribeCargoData(user.uid, data => {
       groups = data.groups;
       myApplications = data.myApplications;
+      applicationAccess = data.applicationAccess;
       dataConnected = true;
-      openCreateButton.disabled = false;
+      openCreateButton.disabled = applicationAccess !== 'ready';
       const syncedAt = new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date());
-      setDataStatus('ready', `Firebase 실시간 연결됨 · 전체 ${groups.length}개 그룹 · ${syncedAt} 동기화`);
+      if (applicationAccess === 'ready') {
+        setDataStatus('ready', `Firebase 실시간 연결됨 · 전체 ${groups.length}개 그룹 · ${syncedAt} 동기화`);
+      } else {
+        setDataStatus('warning', `그룹 현황은 실시간 연결됨 · 참여·등록 기능은 Firestore 규칙 적용 후 사용할 수 있습니다.`);
+      }
       render();
     }, error => {
       dataConnected = false;

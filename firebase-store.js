@@ -183,6 +183,7 @@ export const subscribeCargoData = (uid, onData, onError = () => {}) => {
   let groups = [];
   const applications = new Map();
   const loadedApplications = new Set();
+  const deniedApplications = new Set();
   const applicationStops = new Map();
   let stopped = false;
 
@@ -190,7 +191,8 @@ export const subscribeCargoData = (uid, onData, onError = () => {}) => {
     if (stopped || !groups.every(group => loadedApplications.has(group.id))) return;
     onData({
       groups: [...groups].sort((a, b) => (a.departureDate || '').localeCompare(b.departureDate || '')),
-      myApplications: new Map(applications)
+      myApplications: new Map(applications),
+      applicationAccess: deniedApplications.size ? 'denied' : 'ready'
     });
   };
 
@@ -204,6 +206,7 @@ export const subscribeCargoData = (uid, onData, onError = () => {}) => {
       applicationStops.delete(groupId);
       applications.delete(groupId);
       loadedApplications.delete(groupId);
+      deniedApplications.delete(groupId);
     });
 
     groups.forEach(group => {
@@ -211,13 +214,23 @@ export const subscribeCargoData = (uid, onData, onError = () => {}) => {
       const applicationRef = doc(db, 'cargoGroups', group.id, 'applications', uid);
       const stop = onSnapshot(applicationRef, applicationSnapshot => {
         loadedApplications.add(group.id);
+        deniedApplications.delete(group.id);
         if (applicationSnapshot.exists() && (applicationSnapshot.data().status || 'active') === 'active') {
           applications.set(group.id, normalizeApplication(applicationSnapshot));
         } else {
           applications.delete(group.id);
         }
         emit();
-      }, onError);
+      }, error => {
+        if (error?.code !== 'permission-denied') {
+          onError(error);
+          return;
+        }
+        loadedApplications.add(group.id);
+        deniedApplications.add(group.id);
+        applications.delete(group.id);
+        emit();
+      });
       applicationStops.set(group.id, stop);
     });
     emit();

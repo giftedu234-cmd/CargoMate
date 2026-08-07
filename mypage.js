@@ -6,7 +6,7 @@ import {
   subscribeUserProfile,
   cancelOwnedGroup,
   explainStoreError
-} from './firebase-store.js?v=20260807-2';
+} from './firebase-store.js?v=20260807-3';
 
 const createdBox = document.getElementById('createdGroups');
 const joinedBox = document.getElementById('joinedGroups');
@@ -26,6 +26,7 @@ let profile = { trustScore: 100, penaltyCount: 0, blockedUntil: null };
 let profileError = '';
 let dataError = '';
 let dataReady = false;
+let applicationAccess = 'pending';
 let profileReady = false;
 let pendingGroupId = '';
 let pendingParticipantCount = 0;
@@ -116,7 +117,7 @@ const renderCreatedGroups = () => {
   createdBox.innerHTML = ownedGroups.length ? ownedGroups.map(group => {
     const metrics = groupMetrics(group);
     const status = statusFor(group);
-    const canCancel = isRecruiting(group);
+    const canCancel = isRecruiting(group) && applicationAccess === 'ready';
     const cargo = group.creatorCargo || {};
     return `
       <article class="card my-card">
@@ -129,7 +130,7 @@ const renderCreatedGroups = () => {
         <p>개설 화물: <b>${safe(cargo.item || '미입력')}</b> · ${safe(formatNumber(cargo.cbm))} CBM · ${safe(formatNumber(cargo.weight))} kg</p>
         <div class="space-row my-volume-row"><span>${formatNumber(metrics.currentCbm)} / ${formatNumber(group.capacityCbm || group.minCbm)} CBM</span><b>${metrics.fillPercent}%</b></div>
         <div class="progress" aria-label="적재율 ${metrics.fillPercent}%"><span style="width:${metrics.fillPercent}%"></span></div>
-        ${canCancel ? `<button class="btn danger-btn owner-cancel" data-group-id="${safe(group.id)}" type="button">그룹 취소</button>` : `<p class="closed-help">${group.status === 'cancelled' ? '취소된 그룹입니다.' : '모집 마감 이후에는 그룹을 취소할 수 없습니다.'}</p>`}
+        ${canCancel ? `<button class="btn danger-btn owner-cancel" data-group-id="${safe(group.id)}" type="button">그룹 취소</button>` : `<p class="closed-help">${applicationAccess !== 'ready' && isRecruiting(group) ? 'Firestore 규칙 적용 후 그룹을 취소할 수 있습니다.' : group.status === 'cancelled' ? '취소된 그룹입니다.' : '모집 마감 이후에는 그룹을 취소할 수 없습니다.'}</p>`}
       </article>`;
   }).join('') : emptyCard('아직 만든 그룹이 없습니다.', '화물 조건을 입력해 새로운 출항 그룹을 만들어 보세요.', '새 그룹 만들기');
 };
@@ -259,6 +260,7 @@ watchSignedInUser(user => {
   profileError = '';
   dataError = '';
   dataReady = false;
+  applicationAccess = 'pending';
   profileReady = false;
 
   if (!user) {
@@ -271,9 +273,13 @@ watchSignedInUser(user => {
   stopCargoData = subscribeCargoData(user.uid, data => {
     groups = data.groups;
     myApplications = data.myApplications;
+    applicationAccess = data.applicationAccess;
     dataError = '';
     dataReady = true;
-    setLiveStatus('Firebase 실시간 동기화 중', 'live');
+    setLiveStatus(
+      applicationAccess === 'ready' ? 'Firebase 실시간 동기화 중' : '그룹 조회만 연결됨 · Firestore 규칙 적용 필요',
+      applicationAccess === 'ready' ? 'live' : 'error'
+    );
     render();
   }, error => {
     dataError = explainStoreError(error);

@@ -2,7 +2,7 @@ import {
   watchSignedInUser,
   subscribeGroups,
   dashboardStats
-} from './firebase-store.js?v=20260807-2';
+} from './firebase-store.js?v=20260807-3';
 
 let currentUser = null;
 let stopCargoSubscription = null;
