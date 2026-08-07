@@ -12,12 +12,12 @@
     <div class="profile" data-auth-required hidden>
       <aside class="card profile-nav"><h3 data-user-name>화물메이트 회원</h3><p class="muted" data-user-email></p><a class="active" href="#matching-status">내 매칭 현황</a><a href="matching.html">새 그룹 찾기</a><a href="calculator.html">운임 계산기</a><button class="profile-action" type="button" data-logout>로그아웃</button><p data-auth-message style="font-size:12px" aria-live="polite"></p></aside>
       <section id="matching-status" class="my-section">
-        <div id="penaltyStatus" class="penalty-card"></div><div id="mypageNotice" class="mypage-notice" role="status" aria-live="polite" tabindex="-1"></div><p id="mypageLiveStatus" class="live-state" data-state="loading" role="status" aria-live="polite">Firebase 실시간 데이터 연결 중…</p>
+        <div id="penaltyStatus" class="penalty-card"></div><div id="mypageNotice" class="mypage-notice" role="status" aria-live="polite" tabindex="-1"></div><p id="mypageLiveStatus" class="live-state" data-state="loading" role="status" aria-live="polite" hidden></p>
         <div class="space-row"><div><span class="eyebrow">CREATED GROUPS</span><h2>내가 만든 그룹</h2></div><a class="btn" href="matching.html">+ 새 그룹</a></div><div id="createdGroups" class="my-list"></div>
         <div class="my-section"><span class="eyebrow">JOINED GROUPS</span><h2>내가 참여한 그룹</h2><div id="joinedGroups" class="my-list"></div></div>
       </section>
     </div>
   </div></main>
   <div class="confirm-overlay" id="ownerCancelModal" hidden><section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="ownerCancelTitle"><div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h2 id="ownerCancelTitle">이 그룹을 취소하시겠습니까?</h2><p class="muted" id="ownerCancelRoute"></p><div id="ownerPenaltyText" class="penalty-warning"></div><div class="confirm-actions"><button class="btn btn-danger" id="confirmOwnerCancel" type="button">예, 취소합니다</button><button class="btn btn-light" id="keepOwnerGroup" type="button">아니요</button></div></section></div>
-  <footer class="footer">© 2026 CargoMate · 그룹 현황은 Firebase에서, 권한 제한 시 참여 신청은 이 브라우저에 저장됩니다.</footer><script type="module" src="mypage.js?v=20260807-4"></script><script src="auth-gate.js"></script><script type="module" src="firebase-auth.js?v=20260807-3"></script>
+  <footer class="footer">© 2026 CargoMate · 화주 주도형 컨테이너 공유 플랫폼</footer><script type="module" src="mypage.js?v=20260807-5"></script><script src="auth-gate.js"></script><script type="module" src="firebase-auth.js?v=20260807-3"></script>
 </body></html>

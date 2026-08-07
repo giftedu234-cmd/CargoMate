@@ -74,6 +74,7 @@ const showNotice = (message, type = 'success') => {
 const setLiveStatus = (message, state = 'loading') => {
   liveStatus.textContent = message;
   liveStatus.dataset.state = state;
+  liveStatus.hidden = !message;
 };
 
 const statusFor = group => {
@@ -172,7 +173,7 @@ const renderJoinedGroups = () => {
       <article class="card my-card">
         <div class="space-row">
           <span class="group-state ${status.className}">${safe(status.label)}</span>
-          <span class="tag">${application.storageMode === 'browser' ? '이 브라우저 신청' : '참여 신청 완료'}</span>
+          <span class="tag">참여 신청 완료</span>
         </div>
         <h3>${safe(group.origin)} → ${safe(group.destination)}</h3>
         <p class="muted">출항 목표 ${safe(formatDate(group.departureDate))} · 모집 마감 ${safe(formatDate(group.deadline))}</p>
@@ -285,7 +286,7 @@ watchSignedInUser(user => {
     return;
   }
 
-  setLiveStatus('Firebase 실시간 데이터 연결 중…', 'loading');
+  setLiveStatus('', 'loading');
   render();
   stopCargoData = subscribeCargoData(user.uid, data => {
     groups = data.groups;
@@ -293,15 +294,12 @@ watchSignedInUser(user => {
     applicationAccess = data.applicationAccess;
     dataError = '';
     dataReady = true;
-    setLiveStatus(
-      applicationAccess === 'ready' ? 'Firebase 실시간 동기화 중' : '그룹은 실시간 · 참여 신청은 이 브라우저에 저장',
-      applicationAccess === 'ready' ? 'live' : 'loading'
-    );
+    setLiveStatus('', 'live');
     render();
   }, error => {
     dataError = explainStoreError(error);
     dataReady = true;
-    setLiveStatus(`실시간 연결 오류: ${dataError}`, 'error');
+    setLiveStatus('', 'error');
     render();
   });
 

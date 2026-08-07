@@ -53,7 +53,7 @@
       <button class="btn" type="submit">매칭 검색</button>
     </form>
 
-    <div id="dataStatus" class="data-status" data-state="loading" role="status" aria-live="polite"><i class="fa-solid fa-rotate fa-spin"></i> Firebase에서 실시간 그룹을 불러오는 중입니다.</div>
+    <div id="dataStatus" class="data-status" data-state="loading" role="status" aria-live="polite" hidden></div>
     <div class="space-row" style="margin-top:28px"><div><h2 style="margin:0">출항 그룹</h2><p class="muted" id="matchSummary" style="margin:7px 0 0">데이터 연결을 기다리고 있습니다.</p></div><button id="openCreate" class="btn" type="button" disabled>+ 새 그룹 만들기</button></div>
     <form id="createForm" class="form-card" hidden style="margin-top:18px">
       <label>출발 항구<select id="newOrigin"><option>부산항</option><option>인천항</option><option>평택·당진항</option><option>광양항</option><option>울산항</option></select></label>
@@ -104,8 +104,8 @@
     </section>
   </div>
 
-  <footer class="footer">© 2026 CargoMate · 그룹은 Firebase 실시간, 권한 제한 시 참여 신청은 이 브라우저에 저장됩니다.</footer>
-  <script type="module" src="matching.js?v=20260807-4"></script>
+  <footer class="footer">© 2026 CargoMate · 화주 주도형 컨테이너 공유 플랫폼</footer>
+  <script type="module" src="matching.js?v=20260807-5"></script>
   <script src="auth-gate.js"></script>
   <script type="module" src="firebase-auth.js?v=20260807-3"></script>
 </body>

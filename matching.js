@@ -111,6 +111,7 @@ const activeCreationBlock = () => {
 const setDataStatus = (state, message) => {
   dataStatus.dataset.state = state;
   dataStatus.textContent = message;
+  dataStatus.hidden = !message;
 };
 
 const showNotice = (text = '새 그룹을 등록했습니다. 개설자의 화물 정보도 그룹 카드에 표시됩니다.', isError = false) => {
@@ -185,7 +186,7 @@ const cardMarkup = group => {
     : `<button class="btn join${application ? ' cancel-application' : ''}" data-group-id="${safe(encodeURIComponent(group.id))}" data-applied="${Boolean(application)}" type="button" style="margin-top:18px;width:100%"${unavailable || (isFull && !application) ? ' disabled' : ''}>${buttonLabel}</button>`;
 
   const applicationMarkup = application
-    ? `<div class="my-application">내 신청 화물: ${safe(application.item)} · ${safe(formatNumber(application.cbm))} CBM · ${safe(formatNumber(application.weight))} kg · ${safe(application.condition)}${application.storageMode === 'browser' ? ' · 이 브라우저에 저장됨' : ''}</div>`
+    ? `<div class="my-application">내 신청 화물: ${safe(application.item)} · ${safe(formatNumber(application.cbm))} CBM · ${safe(formatNumber(application.weight))} kg · ${safe(application.condition)}</div>`
     : '';
 
   return `<article class="card match-card">
@@ -354,7 +355,7 @@ joinForm.addEventListener('submit', async event => {
     };
     if (applicationAccess === 'ready') {
       await applyToCargoGroup(currentUser, groupId, cargo);
-      $('#successMessage').textContent = '화물 정보가 Firebase에 등록되었고 그룹 참여 신청이 완료되었습니다.';
+      $('#successMessage').textContent = '화물 정보 입력과 그룹 참여 신청이 완료되었습니다.';
     } else {
       localApplications.set(groupId, {
         ...cargo,
@@ -365,7 +366,7 @@ joinForm.addEventListener('submit', async event => {
       });
       saveLocalApplications();
       myApplications = mergeApplications(new Map());
-      $('#successMessage').textContent = '참여 신청을 이 브라우저에 저장했습니다. 다른 기기에는 표시되지 않습니다.';
+      $('#successMessage').textContent = '그룹 참여 신청이 완료되었습니다.';
     }
     activeJoinId = '';
     closeModal(joinModal);
@@ -443,12 +444,10 @@ const stopAuth = watchSignedInUser(user => {
     return;
   }
 
-  setDataStatus('loading', 'Firebase에서 실시간 그룹을 불러오는 중입니다.');
+  setDataStatus('loading', '');
   stopProfile = subscribeUserProfile(user.uid, nextProfile => {
     profile = nextProfile;
-  }, error => {
-    showNotice(explainStoreError(error), true);
-  });
+  }, () => {});
 
   try {
     stopCargoData = subscribeCargoData(user.uid, data => {
@@ -457,21 +456,16 @@ const stopAuth = watchSignedInUser(user => {
       applicationAccess = data.applicationAccess;
       dataConnected = true;
       openCreateButton.disabled = applicationAccess !== 'ready';
-      const syncedAt = new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date());
-      if (applicationAccess === 'ready') {
-        setDataStatus('ready', `Firebase 실시간 연결됨 · 전체 ${groups.length}개 그룹 · ${syncedAt} 동기화`);
-      } else {
-        setDataStatus('warning', '그룹 현황은 실시간 연결됨 · 참여 신청은 현재 브라우저에 저장됩니다.');
-      }
+      setDataStatus('ready', '');
       render();
     }, error => {
       dataConnected = false;
       openCreateButton.disabled = true;
-      setDataStatus('error', `실시간 연결 오류: ${explainStoreError(error)}`);
+      setDataStatus('error', '');
       render();
     });
   } catch (error) {
-    setDataStatus('error', `실시간 연결 오류: ${explainStoreError(error)}`);
+    setDataStatus('error', '');
   }
 });
 
