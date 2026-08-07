@@ -16,6 +16,8 @@
     .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}.btn-danger{background:#d43b3b}.btn-light{background:#e9eef5;color:#263951}
     .join-fields{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px}.join-fields .wide,.form-wide{grid-column:1/-1}.join-fields textarea,.form-card textarea{width:100%;min-height:84px;margin-top:7px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;resize:vertical;font:inherit;color:var(--ink)}
     .creator-cargo{margin:16px 0;padding:16px;border:1px solid #d8e5f5;border-radius:12px;background:#f7faff}.creator-cargo h4{margin:0 0 12px;color:#173f72}.cargo-facts{display:grid;grid-template-columns:1fr 1fr;gap:9px 14px;font-size:13px}.cargo-facts span{color:#64748b}.cargo-facts b{display:block;margin-top:3px;color:#172b49}.cargo-notes{margin:10px 0 0;font-size:12px;color:#526176}.my-application{margin:14px 0 0;padding:11px;border-radius:9px;background:#ebfaf4;color:#087551;font-size:12px;font-weight:700}
+    #createNotice{display:none;background:#087a55;color:#fff;border-color:#056543;box-shadow:0 10px 24px #087a5533;opacity:0;transform:translateY(-7px);transition:opacity .8s ease,transform .8s ease}
+    #createNotice.is-visible{opacity:1;transform:translateY(0)}
     @media(max-width:560px){.join-fields,.cargo-facts{grid-template-columns:1fr}.confirm-actions{grid-template-columns:1fr}.confirm-dialog{padding:24px}.form-wide{grid-column:auto}}
   </style>
 </head>
@@ -50,7 +52,7 @@
       <label class="form-wide">특이사항<textarea id="newNotes" maxlength="300" placeholder="취급 주의사항이나 함께 적재하면 안 되는 화물을 입력하세요."></textarea></label>
       <button class="btn" type="submit">그룹 등록하기</button>
     </form>
-    <div class="success" id="createNotice">새 그룹을 등록했습니다. 개설자의 화물 정보도 그룹 카드에 표시됩니다.</div>
+    <div class="success" id="createNotice" role="status" aria-live="polite">새 그룹을 등록했습니다. 개설자의 화물 정보도 그룹 카드에 표시됩니다.</div>
     <div class="grid-3" id="matchResults" style="margin-top:22px"></div>
   </div></main>
 
@@ -107,6 +109,7 @@
       let activeCancelKey = '';
       const result = document.getElementById('matchResults');
       const summary = document.getElementById('matchSummary');
+      const createNotice = document.getElementById('createNotice');
       const joinModal = document.getElementById('joinModal');
       const successModal = document.getElementById('successModal');
       const cancelModal = document.getElementById('cancelModal');
@@ -117,6 +120,19 @@
       const effectiveCbm = group => Number(group.currentCbm)+(Number(applications[groupKey(group)]?.cbm)||0);
       const stage = (currentCbm,minCbm) => currentCbm >= minCbm ? {number:2,label:'최소 물량 달성 · 견적 비교 대기',color:'#0d9f6e'} : {number:1,label:'모집 중 · 최소 물량 확보 필요',color:'#1565d8'};
       const closeModal = modal => { modal.hidden=true; };
+      let createNoticeTimer;
+      let createNoticeCleanupTimer;
+      const showCreateNotice = () => {
+        clearTimeout(createNoticeTimer);
+        clearTimeout(createNoticeCleanupTimer);
+        createNotice.style.display='block';
+        createNotice.classList.remove('is-visible');
+        requestAnimationFrame(()=>requestAnimationFrame(()=>createNotice.classList.add('is-visible')));
+        createNoticeTimer=setTimeout(()=>{
+          createNotice.classList.remove('is-visible');
+          createNoticeCleanupTimer=setTimeout(()=>{createNotice.style.display='none';},850);
+        },5000);
+      };
 
       const draw = list => {
         visibleGroups=list;
@@ -140,7 +156,7 @@
 
       document.getElementById('matchForm').onsubmit=event=>{event.preventDefault();const origin=document.getElementById('origin').value,destination=document.getElementById('destination').value,date=document.getElementById('sailingDate').value;draw(groups.filter(group=>group.origin===origin&&group.destination===destination&&(!date||group.departureDate>=date)));};
       document.getElementById('openCreate').onclick=()=>{const form=document.getElementById('createForm');form.hidden=!form.hidden;if(!form.hidden)document.getElementById('newDate').focus();};
-      document.getElementById('createForm').onsubmit=event=>{event.preventDefault();const volume=Number(document.getElementById('newMyVolume').value);const group={origin:document.getElementById('newOrigin').value,destination:document.getElementById('newDestination').value,departureDate:document.getElementById('newDate').value,deadline:document.getElementById('newDeadline').value,type:'40ft HQ',minCbm:Number(document.getElementById('newMinimum').value),currentCbm:volume,members:1,creatorCargo:{item:document.getElementById('newCargoItem').value.trim(),cbm:volume,weight:Number(document.getElementById('newWeight').value),packaging:document.getElementById('newPackaging').value,condition:document.getElementById('newCondition').value,notes:document.getElementById('newNotes').value.trim()}};created.unshift(group);localStorage.setItem(storageKey,JSON.stringify(created));groups.unshift(group);document.getElementById('createNotice').style.display='block';event.target.reset();event.target.hidden=true;draw(groups);};
+      document.getElementById('createForm').onsubmit=event=>{event.preventDefault();const volume=Number(document.getElementById('newMyVolume').value);const group={origin:document.getElementById('newOrigin').value,destination:document.getElementById('newDestination').value,departureDate:document.getElementById('newDate').value,deadline:document.getElementById('newDeadline').value,type:'40ft HQ',minCbm:Number(document.getElementById('newMinimum').value),currentCbm:volume,members:1,creatorCargo:{item:document.getElementById('newCargoItem').value.trim(),cbm:volume,weight:Number(document.getElementById('newWeight').value),packaging:document.getElementById('newPackaging').value,condition:document.getElementById('newCondition').value,notes:document.getElementById('newNotes').value.trim()}};created.unshift(group);localStorage.setItem(storageKey,JSON.stringify(created));groups.unshift(group);showCreateNotice();event.target.reset();event.target.hidden=true;draw(groups);};
       document.getElementById('joinForm').onsubmit=event=>{event.preventDefault();const form=new FormData(event.target);applications[activeJoinKey]={item:String(form.get('item')).trim(),cbm:Number(form.get('cbm')),weight:Number(form.get('weight')),packaging:String(form.get('packaging')),condition:String(form.get('condition')),notes:String(form.get('notes')).trim(),appliedAt:new Date().toISOString()};saveApplications();closeModal(joinModal);draw(visibleGroups);successModal.hidden=false;document.getElementById('closeSuccess').focus();};
       document.getElementById('closeJoin').onclick=()=>closeModal(joinModal);
       document.getElementById('closeSuccess').onclick=()=>closeModal(successModal);
