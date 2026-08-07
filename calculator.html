@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
-<body data-require-auth="true">
+<body data-require-auth="true" style="visibility:hidden">
   <header class="header"><div class="container nav">
     <a class="brand" href="index.html"><span class="brand-icon"><i class="fa-solid fa-cubes-stacked"></i></span>화물메이트 <small>CargoMate</small></a>
-    <nav class="menu"><a href="index.html">서비스 소개</a><a href="matching.html">화물 매칭 찾기</a><a class="active" href="calculator.html">운임 계산기</a><a href="quotes.html">그룹 견적</a><a href="mypage.html">마이페이지</a></nav>
+    <nav class="menu"><a href="index.html">서비스 소개</a><a href="matching.html">화물 매칭 찾기</a><a class="active" href="calculator.html">운임 계산기</a><a href="mypage.html">마이페이지</a></nav>
   </div></header>
   <main class="section"><div class="container calculator">
     <div>
@@ -52,6 +52,7 @@
       update();
     })();
   </script>
+  <script src="auth-gate.js"></script>
   <script type="module" src="firebase-auth.js"></script>
 </body>
 </html>

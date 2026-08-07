@@ -1,8 +1,23 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>마이페이지 | CargoMate</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></head>
-<body data-require-auth="true">
-  <header class="header"><div class="container nav"><a class="brand" href="index.html"><span class="brand-icon"><i class="fa-solid fa-cubes-stacked"></i></span>화물메이트 <small>CargoMate</small></a><nav class="menu"><a href="index.html">서비스 소개</a><a href="matching.html">화물 매칭 찾기</a><a href="calculator.html">운임 계산기</a><a href="quotes.html">그룹 견적</a><a class="active" href="mypage.html">마이페이지</a></nav></div></header>
-  <main class="section"><div class="container"><div class="section-heading"><span class="eyebrow">MY PAGE</span><h1><span data-user-name>회원</span>님의 화물 관리</h1><p class="muted">참여 중인 그룹과 견적 진행 상황을 확인하세요.</p></div>
-    <div class="profile" data-auth-required hidden><aside class="card profile-nav"><h3 data-user-name>화물메이트 회원</h3><p class="muted" data-user-email></p><a href="mypage.html">내 매칭 현황</a><a href="quotes.html">견적 요청 내역</a><a href="calculator.html">운임 계산기</a><a href="#" data-logout>로그아웃</a></aside><section><article class="card"><span class="tag">견적 비교 중</span><h2>부산항 → 롱비치항 (미국)</h2><p class="muted">데모 예시 그룹입니다. 로그인한 계정으로 매칭과 견적 기능을 이용할 수 있습니다.</p><a class="btn" href="matching.html">그룹 찾아보기</a></article></section></div>
-  </div></main><footer class="footer">© 2026 CargoMate</footer><script type="module" src="firebase-auth.js"></script>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>마이페이지 | CargoMate</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    .profile-action{width:100%;padding:13px;border:0;border-radius:8px;background:transparent;text-align:left;font:inherit;font-weight:700;color:#b42323;cursor:pointer}.profile-nav a.active{background:#eaf3ff;color:#1479ff}.my-section{scroll-margin-top:90px}.my-section+.my-section{margin-top:30px}.my-list{display:grid;gap:16px}.my-card h3{margin:10px 0 5px}.danger-btn{background:#fff1f1;color:#b42323;border:1px solid #f1b5b5}.danger-btn:disabled{cursor:not-allowed;opacity:.55}.penalty-card{display:none;margin-bottom:20px;padding:16px;border:1px solid #efc08e;border-radius:12px;background:#fff8e9;color:#80520b}.mypage-notice{display:none;margin-bottom:18px;padding:14px;border-radius:10px;background:#e8f8f1;color:#087551}.confirm-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:#07162b99;backdrop-filter:blur(4px)}.confirm-overlay[hidden]{display:none}.confirm-dialog{width:min(100%,430px);padding:30px;border-radius:18px;background:#fff;text-align:center}.confirm-icon{display:grid;place-items:center;width:52px;height:52px;margin:auto;border-radius:50%;background:#fff0e9;color:#d44332;font-size:22px}.confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}.btn-light{background:#e9eef5;color:#263951}.btn-danger{background:#c93131}.penalty-warning{padding:12px;border-radius:9px;background:#fff5e7;color:#8b5400;font-size:13px;line-height:1.6}
+  </style>
+</head>
+<body data-require-auth="true" style="visibility:hidden">
+  <header class="header"><div class="container nav"><a class="brand" href="index.html"><span class="brand-icon"><i class="fa-solid fa-cubes-stacked"></i></span>화물메이트 <small>CargoMate</small></a><nav class="menu"><a href="index.html">서비스 소개</a><a href="matching.html">화물 매칭 찾기</a><a href="calculator.html">운임 계산기</a><a class="active" href="mypage.html">마이페이지</a></nav></div></header>
+  <main class="section"><div class="container"><div class="section-heading"><span class="eyebrow">MY PAGE</span><h1><span data-user-name>회원</span>님의 화물 관리</h1><p class="muted">내가 만든 그룹과 참여 신청한 그룹을 한곳에서 관리하세요.</p></div>
+    <div class="profile" data-auth-required hidden>
+      <aside class="card profile-nav"><h3 data-user-name>화물메이트 회원</h3><p class="muted" data-user-email></p><a class="active" href="#matching-status">내 매칭 현황</a><a href="matching.html">새 그룹 찾기</a><a href="calculator.html">운임 계산기</a><button class="profile-action" type="button" data-logout>로그아웃</button><p data-auth-message style="font-size:12px" aria-live="polite"></p></aside>
+      <section id="matching-status" class="my-section">
+        <div id="penaltyStatus" class="penalty-card"></div><div id="mypageNotice" class="mypage-notice" role="status" aria-live="polite"></div>
+        <div class="space-row"><div><span class="eyebrow">CREATED GROUPS</span><h2>내가 만든 그룹</h2></div><a class="btn" href="matching.html">+ 새 그룹</a></div><div id="createdGroups" class="my-list"></div>
+        <div class="my-section"><span class="eyebrow">JOINED GROUPS</span><h2>내가 참여한 그룹</h2><div id="joinedGroups" class="my-list"></div></div>
+      </section>
+    </div>
+  </div></main>
+  <div class="confirm-overlay" id="ownerCancelModal" hidden><section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="ownerCancelTitle"><div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><h2 id="ownerCancelTitle">이 그룹을 취소하시겠습니까?</h2><p class="muted" id="ownerCancelRoute"></p><div id="ownerPenaltyText" class="penalty-warning"></div><div class="confirm-actions"><button class="btn btn-danger" id="confirmOwnerCancel" type="button">예, 취소합니다</button><button class="btn btn-light" id="keepOwnerGroup" type="button">아니요</button></div></section></div>
+  <footer class="footer">© 2026 CargoMate · 데모 데이터는 현재 브라우저에 저장됩니다.</footer><script src="mypage.js"></script><script src="auth-gate.js"></script><script type="module" src="firebase-auth.js"></script>
 </body></html>

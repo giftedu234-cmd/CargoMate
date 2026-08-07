@@ -75,23 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.compare').forEach(item => item.classList.remove('selected'));
       card.classList.add('selected');
       if (comparisonMessage) comparisonMessage.textContent = card.dataset.type === 'mate'
-        ? '화주가 먼저 그룹을 만들고, 포워더 견적을 비교해 선택합니다.'
+        ? '화주가 화물 조건과 출항 가능성을 확인하고 공동 출항 그룹에 참여합니다.'
         : '포워더가 혼적 구성과 출항 시점을 정하는 기존 LCL 방식입니다.';
-    };
-  });
-
-  const rfpButton = document.querySelector('#rfpButton');
-  if (rfpButton) rfpButton.onclick = () => {
-    rfpButton.textContent = '견적 요청 전송 완료'; rfpButton.style.background = '#0d9f6e'; rfpButton.disabled = true;
-    document.querySelector('#rfpNotice').style.display = 'block';
-  };
-
-  document.querySelectorAll('.selectQuote').forEach(button => {
-    button.onclick = () => {
-      document.querySelectorAll('.quote-card').forEach(card => card.classList.remove('selected'));
-      button.closest('.quote-card').classList.add('selected');
-      document.querySelectorAll('.selectQuote').forEach(item => item.textContent = '이 견적 선택');
-      button.textContent = '선택됨';
     };
   });
 
