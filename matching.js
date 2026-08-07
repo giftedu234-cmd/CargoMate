@@ -71,7 +71,7 @@ const loadLocalGroups = () => {
     return [];
   }
 };
-const saveLocalGroups = () => localStorage.setItem(localGroupsKey, JSON.stringify(groups));
+const saveLocalGroups = () => localStorage.setItem(localGroupsKey, JSON.stringify(groups.filter(group => !group.isExample)));
 
 const localDateString = date => {
   const value = date instanceof Date ? date : new Date(date);
@@ -88,6 +88,27 @@ const shiftDate = (value, days) => {
   date.setDate(date.getDate() + days);
   return localDateString(date);
 };
+
+const exampleGroups = () => [
+  {
+    id: 'example-busan-longbeach', isExample: true, ownerUid: 'example-owner-1', origin: '부산항', destination: '롱비치항 (미국)',
+    departureDate: shiftDate(localToday(), 35), deadline: shiftDate(localToday(), 28), deadlineOffsetDays: 7,
+    type: '40ft HQ', minCbm: 34, capacityCbm: 34, currentCbm: 22, activeCargoCount: 3, status: 'recruiting',
+    creatorCargo: { item: '생활용품', cbm: 8, weight: 2100, packaging: '팔레트', condition: '일반 화물', notes: '습기 주의' }
+  },
+  {
+    id: 'example-incheon-hamburg', isExample: true, ownerUid: 'example-owner-2', origin: '인천항', destination: '함부르크항 (독일)',
+    departureDate: shiftDate(localToday(), 42), deadline: shiftDate(localToday(), 28), deadlineOffsetDays: 14,
+    type: '40ft HQ', minCbm: 32, capacityCbm: 32, currentCbm: 17.5, activeCargoCount: 2, status: 'recruiting',
+    creatorCargo: { item: '자동차 부품', cbm: 10.5, weight: 3800, packaging: '목재 상자', condition: '파손 주의', notes: '중량물 하역 장비 필요' }
+  },
+  {
+    id: 'example-gwangyang-singapore', isExample: true, ownerUid: 'example-owner-3', origin: '광양항', destination: '싱가포르항 (싱가포르)',
+    departureDate: shiftDate(localToday(), 28), deadline: shiftDate(localToday(), 21), deadlineOffsetDays: 7,
+    type: '40ft HQ', minCbm: 30, capacityCbm: 30, currentCbm: 12, activeCargoCount: 2, status: 'recruiting',
+    creatorCargo: { item: '식품 포장재', cbm: 7, weight: 1450, packaging: '박스', condition: '일반 화물', notes: '직사광선 및 고온 주의' }
+  }
+];
 
 const selectedDestination = (selectId, inputId) => {
   const selected = $(selectId).value;
@@ -220,7 +241,7 @@ const cardMarkup = group => {
     : '';
 
   return `<article class="card match-card">
-    <div class="space-row"><span class="tag" style="color:${stage.color}">${stage.label}</span><small>화주 ${metrics.activeCargoCount}명</small></div>
+    <div class="space-row"><span class="tag" style="color:${stage.color}">${group.isExample ? '예시 목록 · ' : ''}${stage.label}</span><small>화주 ${metrics.activeCargoCount}명</small></div>
     <h3>${safe(group.origin)} → ${safe(group.destination)}</h3>
     <p class="muted">출항 목표 ${safe(formatDate(group.departureDate))} · ${safe(group.type)}</p>
     <section class="creator-cargo">
@@ -254,8 +275,9 @@ const render = () => {
     return;
   }
 
+  const exampleCount = visibleGroups.filter(group => group.isExample).length;
   summary.textContent = visibleGroups.length
-    ? `${visibleGroups.length}개의 출항 그룹을 찾았습니다. 개설자 화물과 출항 조건을 확인해 주세요.`
+    ? `예시 목록 ${exampleCount}개${visibleGroups.length > exampleCount ? ` · 등록 그룹 ${visibleGroups.length - exampleCount}개` : ''}가 표시됩니다. 개설자 화물과 출항 조건을 확인해 주세요.`
     : filterActive
       ? '입력한 조건과 적재 가능 부피에 맞는 그룹이 없습니다. 새 그룹을 만들어 보세요.'
       : '현재 모집 중인 그룹이 없습니다. 새 그룹을 만들어 보세요.';
@@ -489,7 +511,7 @@ const stopAuth = watchSignedInUser(user => {
   stopCargoData = null;
   stopProfile = null;
   currentUser = user;
-  groups = loadLocalGroups();
+  groups = [...exampleGroups(), ...loadLocalGroups()];
   myApplications = new Map();
   localApplications = user ? loadLocalApplications(user.uid) : new Map();
   myApplications = mergeApplications(new Map());
