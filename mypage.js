@@ -55,7 +55,7 @@ const loadLocalGroups = () => {
     return [];
   }
 };
-const saveLocalGroups = () => localStorage.setItem(localGroupsKey, JSON.stringify(groups));
+const saveLocalGroups = () => localStorage.setItem(localGroupsKey, JSON.stringify(groups.filter(group => !group.isExample)));
 
 const safe = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -69,6 +69,25 @@ const formatDate = value => {
 };
 
 const formatNumber = value => new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 }).format(Number(value) || 0);
+
+const localDateString = date => {
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) return '';
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+};
+const shiftDate = (value, days) => {
+  const date = new Date(`${value}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return localDateString(date);
+};
+const exampleGroups = () => {
+  const today = localDateString(new Date());
+  return [
+    { id: 'example-busan-longbeach', isExample: true, ownerUid: 'example-owner-1', origin: '부산항', destination: '롱비치항 (미국)', departureDate: shiftDate(today, 35), deadline: shiftDate(today, 28), type: '40ft HQ', minCbm: 34, capacityCbm: 34, currentCbm: 22, activeCargoCount: 3, status: 'recruiting', creatorCargo: { item: '생활용품', cbm: 8, weight: 2100 } },
+    { id: 'example-incheon-hamburg', isExample: true, ownerUid: 'example-owner-2', origin: '인천항', destination: '함부르크항 (독일)', departureDate: shiftDate(today, 42), deadline: shiftDate(today, 28), type: '40ft HQ', minCbm: 32, capacityCbm: 32, currentCbm: 17.5, activeCargoCount: 2, status: 'recruiting', creatorCargo: { item: '자동차 부품', cbm: 10.5, weight: 3800 } },
+    { id: 'example-gwangyang-singapore', isExample: true, ownerUid: 'example-owner-3', origin: '광양항', destination: '싱가포르항 (싱가포르)', departureDate: shiftDate(today, 28), deadline: shiftDate(today, 21), type: '40ft HQ', minCbm: 30, capacityCbm: 30, currentCbm: 12, activeCargoCount: 2, status: 'recruiting', creatorCargo: { item: '식품 포장재', cbm: 7, weight: 1450 } }
+  ];
+};
 
 const showNotice = (message, type = 'success') => {
   notice.textContent = message;
@@ -282,7 +301,7 @@ const stopSubscriptions = () => {
 watchSignedInUser(user => {
   stopSubscriptions();
   currentUser = user;
-  groups = loadLocalGroups();
+  groups = [...exampleGroups(), ...loadLocalGroups()];
   myApplications = new Map();
   localApplications = user ? loadLocalApplications(user.uid) : new Map();
   profile = { trustScore: 100, penaltyCount: 0, blockedUntil: null };
