@@ -11,6 +11,8 @@
   const groupKey=group=>group.id||`${group.origin}|${group.destination}|${group.departureDate}`;
   const legacyGroupKey=group=>`${group.origin}|${group.destination}|${group.departureDate}`;
   const groupSnapshot=group=>({id:group.id||'',origin:group.origin||'',destination:group.destination||'',departureDate:group.departureDate||'',deadline:group.deadline||'',type:group.type||'',ownerUid:group.ownerUid||''});
+  const mergeSnapshot=(older,current)=>{const merged={...(older||{})};Object.entries(current||{}).forEach(([key,value])=>{if(value!==''&&value!==null&&value!==undefined)merged[key]=value;});return merged;};
+  const applicationFingerprint=application=>[application.appliedAt||'',application.item||'',application.cbm||'',application.weight||'',application.packaging||'',application.condition||''].join('|');
   const knownDemoGroups=[
     {id:'demo-busan-longbeach-20260915',origin:'부산항',destination:'롱비치항 (미국)',departureDate:'2026-09-15',deadline:'2026-09-08',type:'40ft HQ'},
     {id:'demo-incheon-shanghai-20260912',origin:'인천항',destination:'상하이항 (중국)',departureDate:'2026-09-12',deadline:'2026-08-29',type:'40ft GP'},
@@ -55,11 +57,23 @@
       const bucket=normalizedApplications[targetKey]||(normalizedApplications[targetKey]={});
       entries.forEach(([entryKey,application],index)=>{
         const keyedUid=!['legacy'].includes(entryKey)&&!entryKey.startsWith('unclaimed-')?entryKey:'';
-        let applicantUid=application.applicantUid||keyedUid;
-        if(!applicantUid&&entries.length===1)applicantUid=currentUser.uid;
-        const storageId=applicantUid||`unclaimed-${index}-${application.appliedAt||'application'}`;
-        bucket[storageId]={...application,applicantUid,groupSnapshot:{...snapshot,...(application.groupSnapshot||{})}};
+        const applicantUid=application.applicantUid||keyedUid;
+        const storageId=applicantUid||`unclaimed-${Object.keys(bucket).length}-${index}`;
+        bucket[storageId]={...application,applicantUid,groupSnapshot:mergeSnapshot(application.groupSnapshot,snapshot)};
       });
+    });
+    Object.entries(normalizedApplications).forEach(([targetKey,bucket])=>{
+      const byFingerprint=new Map();
+      Object.values(bucket).forEach(application=>{
+        const fingerprint=applicationFingerprint(application);
+        const previousApplication=byFingerprint.get(fingerprint);
+        byFingerprint.set(fingerprint,previousApplication?{...previousApplication,...application,applicantUid:previousApplication.applicantUid||application.applicantUid,groupSnapshot:mergeSnapshot(previousApplication.groupSnapshot,application.groupSnapshot)}:application);
+      });
+      const finalized={},anonymous=[];
+      [...byFingerprint.values()].forEach(application=>{if(application.applicantUid)finalized[application.applicantUid]=application;else anonymous.push(application);});
+      if(anonymous.length===1&&!finalized[currentUser.uid]){const application=anonymous.shift();finalized[currentUser.uid]={...application,applicantUid:currentUser.uid};}
+      anonymous.forEach((application,index)=>{finalized[`unclaimed-${index}-${applicationFingerprint(application)}`]=application;});
+      normalizedApplications[targetKey]=finalized;
     });
     data.applications=normalizedApplications;
     if(previousApplications!==JSON.stringify(data.applications))save(applicationKey,data.applications);
@@ -92,8 +106,9 @@
     if(index<0)return closeModal();
     const group=data.groups[index];
     if(localDate()>group.deadline)return closeModal();
-    const latestApplications=data.applications[groupKey(group)]||data.applications[legacyGroupKey(group)];
-    const applicationCount=applicationList(latestApplications).filter(item=>item.applicantUid!==group.ownerUid).length;
+    const latestApplications=[...applicationList(data.applications[groupKey(group)]),...applicationList(data.applications[legacyGroupKey(group)])];
+    const uniqueApplications=new Map(latestApplications.map(item=>[item.applicantUid||applicationFingerprint(item),item]));
+    const applicationCount=[...uniqueApplications.values()].filter(item=>item.applicantUid!==group.ownerUid).length;
     const participantCount=Math.max(Math.max(0,Number(group.members||1)-1),applicationCount);
     data.groups.splice(index,1);
     delete data.applications[pendingGroupId];
@@ -104,6 +119,7 @@
     closeModal();render();
   };
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!modal.hidden)closeModal();});
+  window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
   window.addEventListener('cargomate-auth-changed',event=>{currentUser=event.detail;render();});
   if(currentUser)render();
 })();

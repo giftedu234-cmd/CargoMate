@@ -135,6 +135,8 @@
       const groupKey = group => group.id || legacyGroupKey(group);
       const saveApplications = () => localStorage.setItem(applicationKey,JSON.stringify(applications));
       const groupSnapshot=group=>({id:group.id||'',origin:group.origin||'',destination:group.destination||'',departureDate:group.departureDate||'',deadline:group.deadline||'',type:group.type||'',ownerUid:group.ownerUid||''});
+      const mergeSnapshot=(older,current)=>{const merged={...(older||{})};Object.entries(current||{}).forEach(([key,value])=>{if(value!==''&&value!==null&&value!==undefined)merged[key]=value;});return merged;};
+      const applicationFingerprint=application=>[application.appliedAt||'',application.item||'',application.cbm||'',application.weight||'',application.packaging||'',application.condition||''].join('|');
       const applicationEntries=value=>{if(!value)return[];if(value.item)return[['legacy',value]];return Object.entries(value).filter(([,item])=>item&&item.item);};
       const normalizeApplications=claimUid=>{
         const previous=JSON.stringify(applications),normalized={};
@@ -145,11 +147,23 @@
           const entries=applicationEntries(value),bucket=normalized[targetKey]||(normalized[targetKey]={});
           entries.forEach(([entryKey,application],index)=>{
             const keyedUid=entryKey!=='legacy'&&!entryKey.startsWith('unclaimed-')?entryKey:'';
-            let applicantUid=application.applicantUid||keyedUid;
-            if(!applicantUid&&claimUid&&entries.length===1)applicantUid=claimUid;
-            const storageId=applicantUid||`unclaimed-${index}-${application.appliedAt||sourceKey}`;
-            bucket[storageId]={...application,applicantUid,groupSnapshot:{...snapshot,...(application.groupSnapshot||{})}};
+            const applicantUid=application.applicantUid||keyedUid;
+            const storageId=applicantUid||`unclaimed-${Object.keys(bucket).length}-${index}`;
+            bucket[storageId]={...application,applicantUid,groupSnapshot:mergeSnapshot(application.groupSnapshot,snapshot)};
           });
+        });
+        Object.entries(normalized).forEach(([targetKey,bucket])=>{
+          const byFingerprint=new Map();
+          Object.values(bucket).forEach(application=>{
+            const fingerprint=applicationFingerprint(application);
+            const previousApplication=byFingerprint.get(fingerprint);
+            byFingerprint.set(fingerprint,previousApplication?{...previousApplication,...application,applicantUid:previousApplication.applicantUid||application.applicantUid,groupSnapshot:mergeSnapshot(previousApplication.groupSnapshot,application.groupSnapshot)}:application);
+          });
+          const finalized={},anonymous=[];
+          [...byFingerprint.values()].forEach(application=>{if(application.applicantUid)finalized[application.applicantUid]=application;else anonymous.push(application);});
+          if(claimUid&&anonymous.length===1&&!finalized[claimUid]){const application=anonymous.shift();finalized[claimUid]={...application,applicantUid:claimUid};}
+          anonymous.forEach((application,index)=>{finalized[`unclaimed-${index}-${applicationFingerprint(application)}`]=application;});
+          normalized[targetKey]=finalized;
         });
         Object.keys(applications).forEach(key=>delete applications[key]);
         Object.assign(applications,normalized);
@@ -220,6 +234,7 @@
       document.getElementById('keepApplication').onclick=()=>closeModal(cancelModal);
       [joinModal,successModal,cancelModal].forEach(modal=>modal.onclick=event=>{if(event.target===modal)closeModal(modal);});
       document.addEventListener('keydown',event=>{if(event.key==='Escape'){[joinModal,successModal,cancelModal].forEach(closeModal);}});
+      window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
       window.addEventListener('cargomate-auth-changed',event=>{currentUser=event.detail;if(currentUser){let changed=false;created.forEach(group=>{if(!group.ownerUid){group.ownerUid=currentUser.uid;group.ownerEmail=currentUser.email;changed=true;}});if(changed)localStorage.setItem(storageKey,JSON.stringify(created));normalizeApplications(currentUser.uid);}draw(visibleGroups);});
       draw(groups);
     })();

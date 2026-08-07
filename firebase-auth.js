@@ -24,6 +24,9 @@ const requestedPage = () => {
 };
 
 const signupPendingKey = 'cargomate-signup-must-login-again';
+const getPendingSignupEmail = () => { try { return localStorage.getItem(signupPendingKey) || ''; } catch { return ''; } };
+const setPendingSignupEmail = email => { try { localStorage.setItem(signupPendingKey, email.trim().toLowerCase()); } catch {} };
+const clearPendingSignup = () => { try { localStorage.removeItem(signupPendingKey); } catch {} };
 
 if (!isFirebaseConfigured) {
   message('Firebase 설정을 확인해 주세요.', true);
@@ -33,6 +36,7 @@ if (!isFirebaseConfigured) {
   let signupInProgress = false;
   let logoutInProgress = false;
   let signupRecoveryInProgress = false;
+  let loginSubmitted = false;
 
   const markAuthReady = () => {
     document.body.dataset.authReady = 'true';
@@ -40,13 +44,48 @@ if (!isFirebaseConfigured) {
     window.dispatchEvent(new CustomEvent('cargomate-auth-ready'));
   };
 
-  onAuthStateChanged(auth, user => {
+  const publishUser = user => {
     window.cargoMateAuthUser = user ? { uid: user.uid, email: user.email || '', displayName: user.displayName || '' } : null;
     window.dispatchEvent(new CustomEvent('cargomate-auth-changed', { detail: window.cargoMateAuthUser }));
     document.querySelectorAll('[data-user-name]').forEach(el => el.textContent = user?.displayName || user?.email?.split('@')[0] || '회원');
     document.querySelectorAll('[data-user-email]').forEach(el => el.textContent = user?.email || '');
     document.querySelectorAll('[data-auth-required]').forEach(el => el.hidden = !user);
     document.querySelectorAll('[data-auth-guest]').forEach(el => el.hidden = Boolean(user));
+  };
+
+  onAuthStateChanged(auth, user => {
+    if (!user && signupRecoveryInProgress) {
+      publishUser(null);
+      return;
+    }
+
+    const pendingEmail = getPendingSignupEmail();
+    const isPendingSignupUser = Boolean(user && pendingEmail && (user.email || '').toLowerCase() === pendingEmail);
+    if (isPendingSignupUser && !signupInProgress) {
+      if (signupRecoveryInProgress) return;
+      signupRecoveryInProgress = true;
+      signOut(auth).then(() => {
+        clearPendingSignup();
+        signupRecoveryInProgress = false;
+        if (document.body.dataset.loginPage === 'true') {
+          markAuthReady();
+          message('회원가입이 완료되었습니다. 가입한 이메일과 비밀번호로 다시 로그인해 주세요.');
+        } else {
+          const page = location.pathname.split('/').pop() || 'index.html';
+          location.replace(`login.html?next=${encodeURIComponent(page)}&signupComplete=1`);
+        }
+      }).catch(() => {
+        signupRecoveryInProgress = false;
+        if (document.body.dataset.loginPage === 'true') {
+          markAuthReady();
+          message('계정은 생성되었지만 로그인 상태를 정리하지 못했습니다. 페이지를 새로고침해 주세요.', true);
+        }
+      });
+      return;
+    }
+    if (user && pendingEmail && !isPendingSignupUser) clearPendingSignup();
+
+    publishUser(user);
     if (document.body.dataset.requireAuth === 'true') {
       if (!user && !logoutInProgress) {
         location.replace(`login.html?next=${encodeURIComponent(location.pathname.split('/').pop() || 'index.html')}`);
@@ -58,15 +97,14 @@ if (!isFirebaseConfigured) {
     }
 
     if (document.body.dataset.loginPage === 'true' && user && !signupInProgress) {
-      if (sessionStorage.getItem(signupPendingKey) === '1') {
-        if (signupRecoveryInProgress) return;
-        signupRecoveryInProgress = true;
-        signOut(auth).then(() => {
-          sessionStorage.removeItem(signupPendingKey);
-          message('회원가입이 완료되었습니다. 가입한 이메일과 비밀번호로 다시 로그인해 주세요.');
-        }).catch(() => {
-          message('계정은 생성되었지만 로그인 상태를 정리하지 못했습니다. 페이지를 새로고침해 주세요.', true);
-        }).finally(() => { signupRecoveryInProgress = false; });
+      const authCheckFailed = new URLSearchParams(location.search).get('authCheck') === 'failed';
+      if (authCheckFailed && !loginSubmitted) {
+        const continueButton = document.querySelector('[data-auth-continue]');
+        if (continueButton) {
+          continueButton.hidden = false;
+          continueButton.onclick = () => location.replace(requestedPage());
+        }
+        message('기존 로그인 상태를 확인했습니다. 계속하기 버튼을 눌러 이동해 주세요.');
         return;
       }
       location.replace(requestedPage());
@@ -115,11 +153,13 @@ if (!isFirebaseConfigured) {
       if (signup && password !== form.elements.confirmPassword.value) return message('비밀번호 확인이 일치하지 않습니다.', true);
       const submit = document.getElementById('authSubmit');
       submit.disabled = true; submit.textContent = signup ? '회원가입 중…' : '로그인 중…';
+      let accountWasCreated = false;
       try {
         if (signup) {
           signupInProgress = true;
-          sessionStorage.setItem(signupPendingKey, '1');
+          setPendingSignupEmail(email);
           const credential = await createUserWithEmailAndPassword(auth, email, password);
+          accountWasCreated = true;
           const name = form.elements.name.value.trim();
           let profileSaved = true;
           if (name) {
@@ -127,7 +167,7 @@ if (!isFirebaseConfigured) {
             catch { profileSaved = false; }
           }
           await signOut(auth);
-          sessionStorage.removeItem(signupPendingKey);
+          clearPendingSignup();
           signupInProgress = false;
           form.reset();
           setMode(false);
@@ -137,16 +177,18 @@ if (!isFirebaseConfigured) {
             : '회원가입은 완료되었지만 이름은 저장되지 않았습니다. 이메일과 비밀번호로 다시 로그인해 주세요.');
           return;
         } else {
+          loginSubmitted = true;
           await signInWithEmailAndPassword(auth, email, password);
           message('로그인 정보를 확인했습니다. 이동 중입니다.');
           return;
         }
       } catch (error) {
-        const accountWasCreated = signup && Boolean(auth.currentUser);
         if (accountWasCreated) {
+          let signedOut = false;
           try {
             await signOut(auth);
-            sessionStorage.removeItem(signupPendingKey);
+            clearPendingSignup();
+            signedOut = true;
             form.reset();
             setMode(false);
             message('회원가입이 완료되었습니다. 가입한 이메일과 비밀번호로 다시 로그인해 주세요.');
@@ -154,16 +196,20 @@ if (!isFirebaseConfigured) {
             message('계정은 생성되었지만 로그인 상태를 정리하지 못했습니다. 페이지를 새로고침해 주세요.', true);
           }
           signupInProgress = false;
-          submit.disabled = false;
-          submit.textContent = '로그인하기';
+          submit.disabled = !signedOut;
+          submit.textContent = signedOut ? '로그인하기' : '새로고침해 주세요';
           return;
         }
-        if (signup) sessionStorage.removeItem(signupPendingKey);
+        if (signup) clearPendingSignup();
+        loginSubmitted = false;
         signupInProgress = false;
         message(explainError(error.code), true);
         submit.disabled = false; submit.textContent = signup ? '회원가입하기' : '로그인하기';
       }
     });
-    if (new URLSearchParams(location.search).get('loggedOut') === '1') message('로그아웃되었습니다. 다시 이용하려면 로그인해 주세요.');
+    const query = new URLSearchParams(location.search);
+    if (query.get('signupComplete') === '1') message('회원가입이 완료되었습니다. 가입한 이메일과 비밀번호로 다시 로그인해 주세요.');
+    else if (query.get('loggedOut') === '1') message('로그아웃되었습니다. 다시 이용하려면 로그인해 주세요.');
+    else if (query.get('authCheck') === 'failed') message('로그인 상태 확인이 지연되었습니다. 로그인하거나 확인이 끝날 때까지 잠시 기다려 주세요.', true);
   }
 }
